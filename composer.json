@@ -5,7 +5,7 @@
   "license": "MIT",
   "autoload": {
     "psr-4": {
-      "Bigpixelrocket\\LaravelOmakase\\": "src/"
+      "Bigpixelrocket\\LaravelOmakase\\": "app/"
     }
   },
   "authors": [
@@ -16,14 +16,24 @@
   ],
   "require": {
     "php": "^8.4",
-    "illuminate/support": "^10.0",
-    "illuminate/console": "^10.0"
+    "laravel/framework": "^11.31"
   },
   "extra": {
     "laravel": {
       "providers": [
         "Bigpixelrocket\\LaravelOmakase\\OmakaseServiceProvider"
       ]
+    }
+  },
+  "require-dev": {
+    "laravel/pint": "^1.20",
+    "larastan/larastan": "^3.0",
+    "barryvdh/laravel-ide-helper": "^3.5",
+    "pestphp/pest": "^3.7"
+  },
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
     }
   }
 }
