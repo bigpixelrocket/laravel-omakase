@@ -1,0 +1,29 @@
+{
+  "name": "bigpixelrocket/laravel-omakase",
+  "description": "A Laravel package that provides the omakase command",
+  "type": "library",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "Bigpixelrocket\\LaravelOmakase\\": "src/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Lucian Văcăroiu",
+      "email": "lucian@bigpixelrocket.com"
+    }
+  ],
+  "require": {
+    "php": "^8.4",
+    "illuminate/support": "^10.0",
+    "illuminate/console": "^10.0"
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Bigpixelrocket\\LaravelOmakase\\OmakaseServiceProvider"
+      ]
+    }
+  }
+}
