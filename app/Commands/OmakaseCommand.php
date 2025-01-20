@@ -46,6 +46,10 @@ class OmakaseCommand extends Command
 
         $this->info('Packages installed successfully');
 
+        $this->info('Installing Horizon...');
+        $this->call('horizon:install');
+        $this->info('Horizon installed successfully');
+
         //
         // Install NPM packages
         // -------------------------------------------------------------------------------
