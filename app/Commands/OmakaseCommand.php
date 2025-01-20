@@ -26,6 +26,7 @@ class OmakaseCommand extends Command
 
         $composerPackages = [
             'livewire/livewire',
+            'laravel/horizon',
         ];
 
         if (! $this->installComposerPackages($composerPackages)) {
