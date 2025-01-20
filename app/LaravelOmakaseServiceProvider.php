@@ -2,12 +2,12 @@
 
 namespace Bigpixelrocket\LaravelOmakase;
 
+use Bigpixelrocket\LaravelOmakase\Commands\LaravelOmakaseCommand;
 use Illuminate\Support\ServiceProvider;
-use Bigpixelrocket\LaravelOmakase\Commands\OmakaseCommand;
 
 class LaravelOmakaseServiceProvider extends ServiceProvider
 {
-    public function boot()
+    public function boot(): void
     {
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -16,7 +16,7 @@ class LaravelOmakaseServiceProvider extends ServiceProvider
         }
     }
 
-    public function register()
+    public function register(): void
     {
         //
     }
