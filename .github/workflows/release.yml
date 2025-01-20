@@ -2,7 +2,7 @@ name: Release
 
 on:
   workflow_run:
-    workflows: ["Larastan", "Pint"] # Names of the workflows that must complete first
+    workflows: ["Phpstan", "Pint"] # Names of the workflows that must complete first
     types:
       - completed
     branches:
