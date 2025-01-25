@@ -11,7 +11,8 @@ class OmakaseCommand extends Command
     protected $signature = 'laravel:omakase
         {--composer : Install only composer packages}
         {--npm : Install only npm packages}
-        {--files : Only copy files}';
+        {--files : Only copy files}
+        {--force : Override existing files when copying}';
 
     protected $description = 'An opinionated menu for your next Laravel project';
 
@@ -88,10 +89,10 @@ class OmakaseCommand extends Command
             $this->line('╚═══════════════════════════════════════════╝');
             $this->newLine();
 
-            $basePath = __DIR__.'/../../files/';
+            $basePath = __DIR__.'/../../dist/';
 
             /** @var \RecursiveIteratorIterator<\RecursiveDirectoryIterator> $files */
-            $files = new \RecursiveIteratorIterator(
+            $distFiles = new \RecursiveIteratorIterator(
                 new \RecursiveDirectoryIterator(
                     $basePath,
                     \RecursiveDirectoryIterator::SKIP_DOTS
@@ -104,7 +105,7 @@ class OmakaseCommand extends Command
                     /** @var \SplFileInfo $file */
                     return $file->getPathname();
                 },
-                iterator_to_array($files)
+                iterator_to_array($distFiles)
             );
 
             sort($files);
@@ -114,7 +115,7 @@ class OmakaseCommand extends Command
                 $destDirname = dirname($destPathname);
                 $relativeDest = str_replace(base_path().'/', '', $destPathname);
 
-                if (file_exists($destPathname)) {
+                if (file_exists($destPathname) && ! $this->option('force')) {
                     $this->warn("skip {$relativeDest}");
 
                     continue;
@@ -127,7 +128,7 @@ class OmakaseCommand extends Command
                 $contents = file_get_contents((string) $filePathname);
                 file_put_contents($destPathname, $contents);
 
-                $this->info("new {$relativeDest}");
+                $this->info(file_exists($destPathname) ? "override {$relativeDest}" : "new {$relativeDest}");
             }
         }
 
