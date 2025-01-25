@@ -3,9 +3,9 @@ includes:
     - vendor/nesbot/carbon/extension.neon
 
 parameters:
-
     paths:
-        - app/
+        - src/
+        - tests/
 
     # Level 10 is the highest level
     level: 10
