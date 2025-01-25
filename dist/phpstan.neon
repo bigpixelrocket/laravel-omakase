@@ -11,8 +11,7 @@ parameters:
     # Level 10 is the highest level
     level: 10
 
-#    ignoreErrors:
-#        - '#PHPDoc tag @var#'
-#
-#    excludePaths:
-#        - ./*/*/FileToBeExcluded.php
+    excludePaths:
+        - ./app/Providers/HorizonServiceProvider.php
+        - ./tests/Feature/ExampleTest.php
+        - ./tests/Pest.php
