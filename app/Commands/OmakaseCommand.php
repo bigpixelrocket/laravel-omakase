@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Bigpixelrocket\LaravelOmakase\Commands;
 
 use Illuminate\Console\Command;
@@ -8,7 +10,7 @@ class OmakaseCommand extends Command
 {
     protected $signature = 'laravel:omakase';
 
-    protected $description = 'Run the omakase command';
+    protected $description = 'An opionionated menu for your next Laravel project';
 
     public function handle(): int
     {
@@ -16,155 +18,173 @@ class OmakaseCommand extends Command
         // Install Composer packages
         // -------------------------------------------------------------------------------
 
-        if (! file_exists(base_path('composer.json'))) {
-            $this->error('composer.json not found in project root.');
-
-            return self::FAILURE;
-        }
-
-        $this->info('Installing Composer packages...');
+        $this->newLine();
+        $this->line('╔═══════════════════════════════════════════╗');
+        $this->line('║       Installing Composer Packages        ║');
+        $this->line('╚═══════════════════════════════════════════╝');
+        $this->newLine();
 
         $composerPackages = [
-            'livewire/livewire',
-            'laravel/horizon',
+            'require' => [
+                'laravel/horizon' => [
+                    ['php', 'artisan', 'horizon:install'],
+                ],
+                'laravel/pulse' => [
+                    ['php', 'artisan', 'vendor:publish', '--tag=pulse-config'],
+                    ['php', 'artisan', 'vendor:publish', '--tag=pulse-dashboard'],
+                    ['php', 'artisan', 'vendor:publish', '--provider="Laravel\Pulse\PulseServiceProvider"'],
+                    ['php', 'artisan', 'migrate'],
+                ],
+                'livewire/livewire' => [
+                    ['php', 'artisan', 'livewire:publish', '--config'],
+                ],
+            ],
+            'require-dev' => [
+                'barryvdh/laravel-ide-helper',
+                'larastan/larastan',
+                'laravel/pint',
+                'pestphp/pest',
+            ],
         ];
 
-        if (! $this->installComposerPackages($composerPackages)) {
+        if (! $this->installPackages($composerPackages, ['composer', 'require'], 'require-dev')) {
             return self::FAILURE;
         }
-
-        $composerDevPackages = [
-            'laravel/pint',
-            'larastan/larastan',
-            'barryvdh/laravel-ide-helper',
-            'pestphp/pest',
-        ];
-
-        if (! $this->installComposerDevPackages($composerDevPackages)) {
-            return self::FAILURE;
-        }
-
-        $this->info('Packages installed successfully');
-
-        $this->info('Installing Horizon...');
-        $this->call('horizon:install');
-        $this->info('Horizon installed successfully');
 
         //
         // Install NPM packages
         // -------------------------------------------------------------------------------
 
-        $this->info('Installing NPM packages...');
+        $this->newLine();
+        $this->line('╔═══════════════════════════════════════════╗');
+        $this->line('║          Installing NPM Packages          ║');
+        $this->line('╚═══════════════════════════════════════════╝');
+        $this->newLine();
 
         $npmPackages = [
+            'dependencies' => [
+            ],
+            'devDependencies' => [
+                'prettier',
+                'prettier-plugin-blade',
+                'prettier-plugin-tailwindcss',
+            ],
         ];
 
-        if (! $this->installNpmPackages($npmPackages, false)) {
+        if (! $this->installPackages($npmPackages, ['npm', 'install'], 'devDependencies')) {
             return self::FAILURE;
         }
 
-        $npmDevPackages = [
-            'prettier',
-            'prettier-plugin-blade',
-            'prettier-plugin-tailwindcss',
-        ];
-
-        if (! $this->installNpmPackages($npmDevPackages, true)) {
-            return self::FAILURE;
-        }
-
-        $this->info('NPM packages installed successfully');
-
         //
-        // Create configuration files
+        // Copy files
         // -------------------------------------------------------------------------------
 
-        $this->info('Creating configuration files...');
+        $this->newLine();
+        $this->line('╔═══════════════════════════════════════════╗');
+        $this->line('║               Copying files               ║');
+        $this->line('╚═══════════════════════════════════════════╝');
+        $this->newLine();
 
-        $configFiles = [
-            '.prettierrc',
-            'phpstan.neon',
-            'pint.json',
-        ];
+        $basePath = __DIR__.'/../../files/';
 
-        foreach ($configFiles as $file) {
-            $this->copyFile($file);
-        }
+        /** @var \RecursiveIteratorIterator<\RecursiveDirectoryIterator> $files */
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(
+                $basePath,
+                \RecursiveDirectoryIterator::SKIP_DOTS
+            )
+        );
 
-        //
-        // Create Github workflows
-        // -------------------------------------------------------------------------------
+        /** @var array<int, string> $files */
+        $files = array_map(
+            static function (mixed $file): string {
+                /** @var \SplFileInfo $file */
+                return $file->getPathname();
+            },
+            iterator_to_array($files)
+        );
 
-        $this->info('Creating Github workflows...');
+        sort($files);
 
-        $githubWorkflows = [
-            '.github/workflows/dependabot-automerge.yml',
-            '.github/workflows/phpstan.yml',
-            '.github/workflows/pint.yml',
-            '.github/workflows/release.yml',
-            '.github/dependabot.yml',
-        ];
+        foreach ($files as $filePathname) {
+            $destPathname = base_path(explode($basePath, (string) $filePathname)[1]);
+            $destDirname = dirname($destPathname);
+            $relativeDest = str_replace(base_path().'/', '', $destPathname);
 
-        foreach ($githubWorkflows as $workflow) {
-            $this->copyFile($workflow);
+            if (file_exists($destPathname)) {
+                $this->warn("skip {$relativeDest}");
+
+                continue;
+            }
+
+            if (! is_dir($destDirname)) {
+                mkdir($destDirname, 0755, true);
+            }
+
+            $contents = file_get_contents((string) $filePathname);
+            file_put_contents($destPathname, $contents);
+
+            $this->info("new {$relativeDest}");
         }
 
         return self::SUCCESS;
     }
 
-    /** @param array<string> $packages */
-    protected function installComposerDevPackages(array $packages): bool
+    /**
+     * @param  array<string, array<string|array<array<string>>>>  $packages
+     * @param  array<string>  $command
+     */
+    protected function installPackages(array $packages, array $command, string $devFlag = ''): bool
     {
-        return $this->installComposerPackages($packages, true);
-    }
+        foreach ($packages as $type => $typePackages) {
+            $commands = [];
+            $packageNames = [];
 
-    /** @param array<string> $packages */
-    protected function installComposerPackages(array $packages, bool $dev = false): bool
-    {
-        $command = ['composer', 'require'];
-        if ($dev) {
-            $command[] = '--dev';
-        }
+            /** @var string|array<array<string>> $v */
+            foreach ($typePackages as $k => $v) {
+                if (is_string($v)) {
+                    $packageNames[] = $v;
+                } else {
+                    $packageNames[] = (string) $k;
+                    $commands = [...$commands, ...$v];
+                }
+            }
 
-        $process = new \Symfony\Component\Process\Process(array_merge(
-            $command,
-            $packages
-        ));
+            $baseCommand = $command;
+            if ($type === $devFlag) {
+                $baseCommand[] = '--dev';
+            }
 
-        if (PHP_OS_FAMILY !== 'Windows') {
-            $process->setTty(true);
-        }
-
-        $process->run();
-
-        if (! $process->isSuccessful()) {
-            $this->error('Failed to install packages');
-
-            return false;
+            $commands = [[...$baseCommand, ...$packageNames], ...$commands];
+            if (! $this->execCommands($commands)) {
+                return false;
+            }
         }
 
         return true;
     }
 
-    /** @param array<string> $packages */
-    protected function installNpmDevPackages(array $packages): bool
+    /**
+     * @param  array<array<string>>  $commands
+     */
+    protected function execCommands(array $commands): bool
     {
-        return $this->installNpmPackages($packages, true);
-    }
-
-    /** @param array<string> $packages */
-    protected function installNpmPackages(array $packages, bool $dev = false): bool
-    {
-        $command = ['npm', 'install'];
-        if ($dev) {
-            $command[] = '--save-dev';
+        foreach ($commands as $command) {
+            $this->warn(implode(' ', $command));
+            if (! $this->exec($command)) {
+                return false;
+            }
         }
 
-        $process = new \Symfony\Component\Process\Process(array_merge(
-            $command,
-            $packages
-        ), base_path());
+        return true;
+    }
 
+    /**
+     * @param  array<string>  $command
+     */
+    protected function exec(array $command): bool
+    {
+        $process = new \Symfony\Component\Process\Process($command);
         if (PHP_OS_FAMILY !== 'Windows') {
             $process->setTty(true);
         }
@@ -172,30 +192,12 @@ class OmakaseCommand extends Command
         $process->run();
 
         if (! $process->isSuccessful()) {
-            $this->error('Failed to install NPM packages');
+            $this->error('Failed to run command');
             $this->error($process->getErrorOutput());
 
             return false;
         }
 
         return true;
-    }
-
-    protected function copyFile(string $filename): void
-    {
-        $destinationPath = base_path($filename);
-
-        // Ensure target directory exists
-        $directory = dirname($destinationPath);
-        if (! is_dir($directory)) {
-            mkdir($directory, 0755, true);
-        }
-
-        // Copy the file
-        $sourceFile = __DIR__.'/../../'.$filename;
-        $contents = file_get_contents($sourceFile);
-        file_put_contents($destinationPath, $contents);
-
-        $this->info("Created '{$filename}' at: {$destinationPath}");
     }
 }
