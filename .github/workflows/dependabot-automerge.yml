@@ -35,17 +35,22 @@ jobs:
               const pint = checks.find(check =>
                 check.name.toLowerCase().includes('pint')
               );
+              const pest = checks.find(check =>
+                check.name.toLowerCase().includes('pest')
+              );
 
-              // Check if both exist and are successful
-              if (phpstan && pint &&
+              // Check if all exist and are successful
+              if (phpstan && pint && pest &&
                   phpstan.conclusion === 'success' &&
-                  pint.conclusion === 'success') {
+                  pint.conclusion === 'success' &&
+                  pest.conclusion === 'success') {
                 break;
               }
 
               // Check for failure conditions to fail fast
               if ((phpstan && phpstan.conclusion === 'failure') ||
-                  (pint && pint.conclusion === 'failure')) {
+                  (pint && pint.conclusion === 'failure') ||
+                  (pest && pest.conclusion === 'failure')) {
                 throw new Error('Required checks failed');
               }
 
