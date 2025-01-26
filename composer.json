@@ -29,11 +29,18 @@
     "laravel/pint": "^1.20",
     "larastan/larastan": "^3.0",
     "barryvdh/laravel-ide-helper": "^3.5",
-    "pestphp/pest": "^3.7"
+    "pestphp/pest": "^3.7",
+    "orchestra/testbench": "^9.9",
+    "pestphp/pest-plugin-laravel": "^3.1"
   },
   "config": {
     "allow-plugins": {
       "pestphp/pest-plugin": true
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
     }
   }
 }
