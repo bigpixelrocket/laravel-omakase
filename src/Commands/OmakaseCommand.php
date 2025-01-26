@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Bigpixelrocket\LaravelOmakase\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\File;
 
 class OmakaseCommand extends Command
 {
@@ -89,46 +90,8 @@ class OmakaseCommand extends Command
             $this->line('╚═══════════════════════════════════════════╝');
             $this->newLine();
 
-            $basePath = __DIR__.'/../../dist/';
-
-            /** @var \RecursiveIteratorIterator<\RecursiveDirectoryIterator> $files */
-            $distFiles = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator(
-                    $basePath,
-                    \RecursiveDirectoryIterator::SKIP_DOTS
-                )
-            );
-
-            /** @var array<int, string> $files */
-            $files = array_map(
-                static function (mixed $file): string {
-                    /** @var \SplFileInfo $file */
-                    return $file->getPathname();
-                },
-                iterator_to_array($distFiles)
-            );
-
-            sort($files);
-
-            foreach ($files as $filePathname) {
-                $destPathname = base_path(explode($basePath, (string) $filePathname)[1]);
-                $destDirname = dirname($destPathname);
-                $relativeDest = str_replace(base_path().'/', '', $destPathname);
-
-                if (file_exists($destPathname) && ! $this->option('force')) {
-                    $this->warn("skip {$relativeDest}");
-
-                    continue;
-                }
-
-                if (! is_dir($destDirname)) {
-                    mkdir($destDirname, 0755, true);
-                }
-
-                $contents = file_get_contents((string) $filePathname);
-                file_put_contents($destPathname, $contents);
-
-                $this->info(file_exists($destPathname) ? "override {$relativeDest}" : "new {$relativeDest}");
+            if (! $this->copyFiles()) {
+                return self::FAILURE;
             }
         }
 
@@ -190,6 +153,8 @@ class OmakaseCommand extends Command
     protected function exec(array $command): bool
     {
         $process = new \Symfony\Component\Process\Process($command);
+
+        // Disable TTY interaction for Windows
         if (PHP_OS_FAMILY !== 'Windows') {
             $process->setTty(true);
         }
@@ -197,10 +162,90 @@ class OmakaseCommand extends Command
         $process->run();
 
         if (! $process->isSuccessful()) {
-            $this->error('Failed to run command');
-            $this->error($process->getErrorOutput());
+            if (! defined('PHPUNIT_COMPOSER_INSTALL')) {
+                $this->error('Failed to run command');
+                $this->error($process->getErrorOutput());
+            }
 
             return false;
+        }
+
+        return true;
+    }
+
+    protected function copyFiles(): bool
+    {
+        $basePath = __DIR__.'/../../dist/';
+
+        /** @var array<int, string> $files */
+        $files = $this->getDistFiles($basePath);
+
+        try {
+            foreach ($files as $filePathname) {
+                $destPathname = base_path(explode($basePath, (string) $filePathname)[1]);
+                $destDirname = dirname($destPathname);
+                $relativeDest = str_replace(base_path().'/', '', $destPathname);
+
+                if (File::exists($destPathname) && ! $this->option('force')) {
+                    $this->warn("skip {$relativeDest}");
+
+                    continue;
+                }
+
+                $this->copyFile($filePathname, $destPathname, $destDirname);
+                $this->info(File::exists($destPathname) ? "override {$relativeDest}" : "new {$relativeDest}");
+            }
+        } catch (\Exception $e) {
+            $this->error($e->getMessage());
+
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function getDistFiles(string $basePath): array
+    {
+        /** @var \RecursiveIteratorIterator<\RecursiveDirectoryIterator> $distFiles */
+        $distFiles = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(
+                $basePath,
+                \RecursiveDirectoryIterator::SKIP_DOTS
+            )
+        );
+
+        /** @var array<int, string> $files */
+        $files = array_map(
+            static function (mixed $file): string {
+                /** @var \SplFileInfo $file */
+                return $file->getPathname();
+            },
+            iterator_to_array($distFiles)
+        );
+
+        sort($files);
+
+        return $files;
+    }
+
+    protected function copyFile(string $filePathname, string $destPathname, string $destDirname): bool
+    {
+        if (! is_dir($destDirname)) {
+            if (! mkdir($destDirname, 0755, true)) {
+                throw new \Exception("Failed to create directory: {$destDirname}");
+            }
+        }
+
+        $contents = file_get_contents((string) $filePathname);
+        if ($contents === false) {
+            throw new \Exception("Failed to read file: {$filePathname}");
+        }
+
+        if (! file_put_contents($destPathname, $contents)) {
+            throw new \Exception("Failed to write file: {$destPathname}");
         }
 
         return true;
