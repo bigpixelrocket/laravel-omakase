@@ -5,10 +5,10 @@ on:
     workflows:
       - Phpstan
       - Pint
+      - Pest
     types:
       - completed
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   release:
