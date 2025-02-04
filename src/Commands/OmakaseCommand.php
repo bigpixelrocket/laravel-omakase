@@ -47,16 +47,18 @@ class OmakaseCommand extends Command
                     'livewire/livewire' => [
                         ['php', 'artisan', 'livewire:publish', '--config'],
                     ],
+                    'spatie/laravel-sluggable',
                 ],
                 'require-dev' => [
                     'barryvdh/laravel-ide-helper',
                     'larastan/larastan',
                     'laravel/pint',
                     'pestphp/pest',
+                    'soloterm/solo',
                 ],
             ];
 
-            if (! $this->installPackages($composerPackages, ['composer', 'require'], 'require-dev')) {
+            if (! $this->installPackages($composerPackages, ['composer', 'require'], 'require-dev', '--dev')) {
                 return self::FAILURE;
             }
         }
