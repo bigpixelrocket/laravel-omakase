@@ -78,7 +78,7 @@ class OmakaseCommand extends Command
                 ],
             ];
 
-            if (! $this->installPackages($npmPackages, ['npm', 'install'], 'devDependencies')) {
+            if (! $this->installPackages($npmPackages, ['npm', 'install'], 'devDependencies', '--save-dev')) {
                 return self::FAILURE;
             }
         }
@@ -102,7 +102,7 @@ class OmakaseCommand extends Command
      * @param  array<string, array<string|array<array<string>>>>  $packages
      * @param  array<string>  $command
      */
-    protected function installPackages(array $packages, array $command, string $devFlag = ''): bool
+    protected function installPackages(array $packages, array $command, string $devFlag = '', string $devFlagValue = '--dev'): bool
     {
         foreach ($packages as $type => $typePackages) {
             $commands = [];
@@ -120,7 +120,7 @@ class OmakaseCommand extends Command
 
             $baseCommand = $command;
             if ($type === $devFlag) {
-                $baseCommand[] = '--dev';
+                $baseCommand[] = $devFlagValue;
             }
 
             $commands = [[...$baseCommand, ...$packageNames], ...$commands];
