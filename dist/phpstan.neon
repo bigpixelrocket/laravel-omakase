@@ -6,11 +6,12 @@ parameters:
 
     paths:
         - app/
+        - database/seeders/
 
     # Level 10 is the highest level
     level: 10
 
     excludePaths:
-        - ./app/Providers/HorizonServiceProvider.php
-        - ./tests/Feature/ExampleTest.php
-        - ./tests/Pest.php
+        - app/Providers/HorizonServiceProvider.php
+        - tests/Feature/ExampleTest.php
+        - tests/Pest.php

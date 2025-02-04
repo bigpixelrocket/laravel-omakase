@@ -47,16 +47,18 @@ class OmakaseCommand extends Command
                     'livewire/livewire' => [
                         ['php', 'artisan', 'livewire:publish', '--config'],
                     ],
+                    'spatie/laravel-sluggable',
                 ],
                 'require-dev' => [
                     'barryvdh/laravel-ide-helper',
                     'larastan/larastan',
                     'laravel/pint',
                     'pestphp/pest',
+                    'soloterm/solo',
                 ],
             ];
 
-            if (! $this->installPackages($composerPackages, ['composer', 'require'], 'require-dev')) {
+            if (! $this->installPackages($composerPackages, ['composer', 'require'], 'require-dev', '--dev')) {
                 return self::FAILURE;
             }
         }
@@ -78,7 +80,7 @@ class OmakaseCommand extends Command
                 ],
             ];
 
-            if (! $this->installPackages($npmPackages, ['npm', 'install'], 'devDependencies')) {
+            if (! $this->installPackages($npmPackages, ['npm', 'install'], 'devDependencies', '--save-dev')) {
                 return self::FAILURE;
             }
         }
@@ -102,7 +104,7 @@ class OmakaseCommand extends Command
      * @param  array<string, array<string|array<array<string>>>>  $packages
      * @param  array<string>  $command
      */
-    protected function installPackages(array $packages, array $command, string $devFlag = ''): bool
+    protected function installPackages(array $packages, array $command, string $devFlag = '', string $devFlagValue = '--dev'): bool
     {
         foreach ($packages as $type => $typePackages) {
             $commands = [];
@@ -120,7 +122,7 @@ class OmakaseCommand extends Command
 
             $baseCommand = $command;
             if ($type === $devFlag) {
-                $baseCommand[] = '--dev';
+                $baseCommand[] = $devFlagValue;
             }
 
             $commands = [[...$baseCommand, ...$packageNames], ...$commands];
