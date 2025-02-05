@@ -1,5 +1,14 @@
 version: 2
 updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    target-branch: "main"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: "composer"
     directory: "/"
     schedule:
@@ -9,12 +18,9 @@ updates:
     labels:
       - "dependencies"
       - "php"
-
-  - package-ecosystem: "github-actions"
-    directory: "/"
-    schedule:
-      interval: "daily"
-    target-branch: "main"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "npm"
     directory: "/"
@@ -24,3 +30,6 @@ updates:
     labels:
       - "dependencies"
       - "javascript"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
