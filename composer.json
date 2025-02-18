@@ -26,7 +26,7 @@
     }
   },
   "require-dev": {
-    "laravel/pint": "^1.20",
+    "laravel/pint": "^1.21",
     "larastan/larastan": "^3.0",
     "barryvdh/laravel-ide-helper": "^3.5",
     "pestphp/pest": "^3.7",
