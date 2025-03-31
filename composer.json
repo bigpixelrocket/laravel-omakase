@@ -29,7 +29,7 @@
     "laravel/pint": "^1.21",
     "larastan/larastan": "^3.2",
     "barryvdh/laravel-ide-helper": "^3.5",
-    "pestphp/pest": "^3.7",
+    "pestphp/pest": "^3.8",
     "orchestra/testbench": "^9.11",
     "pestphp/pest-plugin-laravel": "^3.1"
   },
