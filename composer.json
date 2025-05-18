@@ -16,7 +16,7 @@
   ],
   "require": {
     "php": "^8.2",
-    "laravel/framework": "^11.41"
+    "laravel/framework": "^11.42"
   },
   "extra": {
     "laravel": {
@@ -26,12 +26,12 @@
     }
   },
   "require-dev": {
-    "laravel/pint": "^1.20",
-    "larastan/larastan": "^3.0",
+    "laravel/pint": "^1.22",
+    "larastan/larastan": "^3.4",
     "barryvdh/laravel-ide-helper": "^3.5",
-    "pestphp/pest": "^3.7",
-    "orchestra/testbench": "^9.9",
-    "pestphp/pest-plugin-laravel": "^3.1"
+    "pestphp/pest": "^3.8",
+    "orchestra/testbench": "^9.11",
+    "pestphp/pest-plugin-laravel": "^3.2"
   },
   "config": {
     "allow-plugins": {
