@@ -30,7 +30,7 @@
     "larastan/larastan": "^3.4",
     "barryvdh/laravel-ide-helper": "^3.5",
     "pestphp/pest": "^3.8",
-    "orchestra/testbench": "^9.11",
+    "orchestra/testbench": "^9.14",
     "pestphp/pest-plugin-laravel": "^3.2"
   },
   "config": {
