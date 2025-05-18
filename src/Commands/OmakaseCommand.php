@@ -35,19 +35,9 @@ class OmakaseCommand extends Command
 
             $composerPackages = [
                 'require' => [
-                    'laravel/horizon' => [
-                        ['php', 'artisan', 'horizon:install'],
-                    ],
-                    'laravel/pulse' => [
-                        ['php', 'artisan', 'vendor:publish', '--tag=pulse-config'],
-                        ['php', 'artisan', 'vendor:publish', '--tag=pulse-dashboard'],
-                        ['php', 'artisan', 'vendor:publish', '--provider="Laravel\Pulse\PulseServiceProvider"'],
-                        ['php', 'artisan', 'migrate'],
-                    ],
                     'livewire/livewire' => [
                         ['php', 'artisan', 'livewire:publish', '--config'],
                     ],
-                    'spatie/laravel-sluggable',
                 ],
                 'require-dev' => [
                     'barryvdh/laravel-ide-helper',
