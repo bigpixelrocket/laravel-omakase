@@ -178,14 +178,15 @@ class OmakaseCommand extends Command
                 $destDirname = dirname($destPathname);
                 $relativeDest = str_replace(base_path().'/', '', $destPathname);
 
-                if (File::exists($destPathname) && ! $this->option('force')) {
+                $fileExists = File::exists($destPathname);
+                if ($fileExists && ! $this->option('force')) {
                     $this->warn("skip {$relativeDest}");
 
                     continue;
                 }
 
                 $this->copyFile($filePathname, $destPathname, $destDirname);
-                $this->info(File::exists($destPathname) ? "override {$relativeDest}" : "new {$relativeDest}");
+                $this->info($fileExists ? "override {$relativeDest}" : "new {$relativeDest}");
             }
         } catch (\Exception $e) {
             $this->error($e->getMessage());
@@ -236,7 +237,7 @@ class OmakaseCommand extends Command
             throw new \Exception("Failed to read file: {$filePathname}");
         }
 
-        if (! file_put_contents($destPathname, $contents)) {
+        if (file_put_contents($destPathname, $contents) === false) {
             throw new \Exception("Failed to write file: {$destPathname}");
         }
 
