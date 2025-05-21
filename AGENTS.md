@@ -26,13 +26,15 @@ This repository contains a Laravel package that installs a set of development to
 
 ## Running Tests
 
-Use PHP **8.2** or higher and run:
+Use PHP **8.2** or higher and run the following checks before committing:
 
 ```bash
 php vendor/bin/pest
+php vendor/bin/pint --test
+php vendor/bin/phpstan analyse
 ```
 
-This executes the test suite using Pest.
+These commands run the test suite, check code style and perform static analysis.
 
 ## Commit Guidelines
 
