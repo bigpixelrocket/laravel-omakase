@@ -39,7 +39,7 @@ class OmakaseCommand extends Command
                         ['php', 'artisan', 'livewire:publish', '--config'],
                     ],
                     'spatie/laravel-data' => [
-                        ['php', 'artisan', 'vendor:publish', '--provider="Spatie\LaravelData\LaravelDataServiceProvider"', '--tag="data-config"'],
+                        ['php', 'artisan', 'vendor:publish', '--provider=Spatie\LaravelData\LaravelDataServiceProvider', '--tag=data-config'],
                     ],
                 ],
                 'require-dev' => [
