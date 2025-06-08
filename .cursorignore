@@ -8,3 +8,4 @@ vendor/
 *.csv
 *.lock
 *.log
+*.xml

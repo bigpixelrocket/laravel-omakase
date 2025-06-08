@@ -1,27 +1,14 @@
-# Laravel Omakase Project Overview
+# Project Overview
 
-You are building a Laravel package called "Laravel Omakase". This package helps developers install and configure their Laravel projects with a predefined selection of packages and configurations. The package registers an `OmakaseServiceProvider` which provides a single `OmakaseCommand` command:
-
-- Running the `php artisan laravel:omakase` command installs composer and npm packages
-- The command also copies over a number of predefined configuration files for different tools
-- The command uses `Symfony\Process` to run external processes for installs and other setup tasks
-- The command accepts different options to run only parts of the process
-
-## General Structure
-
-- **composer.json** registers the service provider so Laravel can auto-load it
-- **dist/** contains the different predefined configuration files (e.g. `phpstan.neon`, `pint.json`, GitHub Actions, etc.) that can be copied into a Laravel project
-- **src/Commands/OmakaseCommand.php** is the main entry point: it exposes several options and orchestrates installation of Composer and NPM packages and copies files from the `dist/` directory
-- **src/OmakaseServiceProvider.php** registers the console command
-- **tests/** contains Pest tests with Testbench to verify command behaviour
+You are building a Laravel/Livewire application ...
 
 ## Development Principles
 
-You always think about problems and solutions carefully, step by step and you always follow best practices for writing clean and testable code with an emphasis on readability and maintainability. You write concise, technical responses with accurate PHP/Laravel examples.
+You always think about problems and solutions carefully, step by step and you always follow best practices for writing clean and testable code with an emphasis on readability and maintainability. You write concise, technical responses with accurate PHP/Laravel/Livewire examples.
 
 ### Before Starting Any Task
 
-1. Check current PHP/Laravel versions in `composer.json`
+1. Check current PHP/Laravel/Livewire/Flux/Tailwind versions in `composer.json` and `package.json`
 2. Formulate a detailed implementation plan using syntax and features appropriate for the installed versions
 3. Review and improve the implementation plan ensuring version compatibility
 4. Implement using version-specific syntax and features
@@ -83,6 +70,31 @@ Use Context7 for documentation about version-specific syntaxt, features and APIs
 - Use Laravel's built-in authentication and authorization features
 - Utilize `spatie/laravel-permission` for role-based authorization
 
+**Frontend Implementation Standards**
+
+- Implement all user-facing features using Laravel Livewire components
+- Use the Livewire Flux UI kit for all interface components and layouts
+- Style components exclusively with Tailwind CSS utility classes
+- Avoid traditional Blade views with separate JavaScript files in favor of Livewire's reactive approach
+- Leverage Flux components for consistent design patterns and accessibility standards
+
+**Laravel Livewire**
+
+- Place Livewire components in the `App\Livewire` namespace (not `App\Http\Livewire`)
+- Use `$this->dispatch()` for event dispatching instead of deprecated `$this->emit` or `$this->dispatchBrowserEvent`
+- Reference layouts using `components.layouts.app` path instead of `layouts.app`
+- Use `wire:model.live` for real-time binding (default `wire:model` is now deferred)
+- Apply the same live binding approach to `@entangle` directives
+- Wrap all Livewire component content within a single root `<div>` element
+- Add custom styling to `resources/css/app.css` instead of inline styles in components
+- Include `wire:key` attributes on the first element within loops (`@foreach`, `@for`, etc.) for proper component tracking
+- Leverage Livewire's built-in Alpine.js bundle without manually including Alpine in `resources/js/app.js`
+- Use `#[On('event-name')]` attributes for event listeners instead of the `protected $listeners` property
+- Implement `wire:dirty` for styling unsaved/modified component states
+- Utilize `wire:loading` to provide visual feedback during component actions
+- Apply `wire:confirm` for user confirmation dialogs before destructive actions
+- Don't use Livewire Volt (keep component PHP logic and Blade templates separate)
+
 #### Error Handling & User Experience
 
 **Command Error Handling**
@@ -117,20 +129,6 @@ Use Context7 for documentation about version-specific syntaxt, features and APIs
 - Use Symfony Process for shell commands
 - Set appropriate timeouts
 - Capture and handle both stdout and stderr
-
-#### Package Development Specifics
-
-**Service Provider Registration**
-
-- Register commands, config files, and assets properly
-- Use proper package discovery in composer.json
-- Handle config publishing and merging
-
-**Testbench Integration**
-
-- Always test commands with Orchestra Testbench
-- Mock external processes and file operations
-- Test different Laravel versions compatibility
 
 #### Performance & Security
 
@@ -168,7 +166,6 @@ Use Context7 for documentation about version-specific syntaxt, features and APIs
 - Follow the `TESTING.md` guide closely
 - Use the Pest Framework exclusively for unit and feature tests
 - Always write new tests or modify existing tests for any new or updated code
-- Tests rely on Testbench to boot a minimal Laravel application so the package can run in isolation
 
 **Code Quality & Standards**
 
