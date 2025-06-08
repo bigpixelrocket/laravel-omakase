@@ -191,7 +191,8 @@ php vendor/bin/phpstan analyse
 php vendor/bin/pest --parallel --coverage --coverage-text --min=80
 
 # 4. Make sure you read and followed the testing guide closely
-cat `TESTING.md`
+cat TESTING.md
+```
 
 **Commit Standards**
 
