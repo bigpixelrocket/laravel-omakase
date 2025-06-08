@@ -19,18 +19,6 @@ expect()->extend('toBeOne', function ($value) {
 });
 
 /**
- * Call a protected method on an object using reflection.
- */
-function callProtectedMethod(object $object, string $method, array $arguments = [])
-{
-    $reflection = new ReflectionClass($object);
-    $method = $reflection->getMethod($method);
-    $method->setAccessible(true);
-
-    return $method->invokeArgs($object, $arguments);
-}
-
-/**
  * Create a temporary directory with automatic cleanup tracking.
  */
 function createTempDirectory(string $prefix = 'laravel_omakase_test_'): string

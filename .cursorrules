@@ -36,7 +36,7 @@ You always think about problems and solutions carefully, step by step and you al
 
 **Context7**
 
-Use Context7 for documentation about version-specific syntaxt, features and APIs.
+Use the Context7 MCP for documentation about version-specific syntaxt, features and APIs.
 
 ### PHP/Laravel Standards
 
@@ -165,7 +165,7 @@ Use Context7 for documentation about version-specific syntaxt, features and APIs
 
 **Testing Framework & Approach**
 
-- Follow the `TESTING.md` guide closely
+- Always read and follow the `TESTING.md` guide closely
 - Use the Pest Framework exclusively for unit and feature tests
 - Always write new tests or modify existing tests for any new or updated code
 - Tests rely on Testbench to boot a minimal Laravel application so the package can run in isolation
@@ -189,8 +189,11 @@ php vendor/bin/pint
 # 2. Check static analysis first
 php vendor/bin/phpstan analyse
 
-# 3. Verify tests still pass
-php vendor/bin/pest --parallel
+# 3. Verify tests still pass (with coverage)
+php vendor/bin/pest --parallel --coverage --coverage-text --min=80
+
+# 4. Make sure you read and followed the testing guide closely
+cat `TESTING.md`
 ```
 
 **Commit Standards**
