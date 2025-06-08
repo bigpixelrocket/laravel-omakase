@@ -18,20 +18,21 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.4
-          extensions: dom, curl, libxml, mbstring, zip
-          coverage: none
+          extensions: dom, curl, libxml, mbstring, zip, xdebug
+          coverage: xdebug
+          ini-values: xdebug.mode=coverage
 
-      - name: Cache Composer packages
-        id: composer-cache
+      - name: Cache Composer dependencies
         uses: actions/cache@v3
         with:
           path: vendor
-          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+          key: ${{ runner.os }}-php-8.4-composer-${{ hashFiles('**/composer.lock') }}
           restore-keys: |
-            ${{ runner.os }}-php-
+            ${{ runner.os }}-php-8.4-composer-
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Execute tests
-        run: ./vendor/bin/pest
+      - name: Execute tests with coverage
+        run: |
+          ./vendor/bin/pest --parallel --coverage --coverage-text --min=80

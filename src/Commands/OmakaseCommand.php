@@ -6,6 +6,7 @@ namespace Bigpixelrocket\LaravelOmakase\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
 
 class OmakaseCommand extends Command
 {
@@ -147,19 +148,20 @@ class OmakaseCommand extends Command
      */
     protected function exec(array $command): bool
     {
-        $process = new \Symfony\Component\Process\Process($command);
+        // Use Laravel's Process facade which can be faked in tests
+        $process = Process::command($command);
 
-        // Disable TTY interaction for Windows
-        if (PHP_OS_FAMILY !== 'Windows') {
-            $process->setTty(true);
+        // Only use TTY mode if not running tests and not on Windows
+        if (! app()->runningUnitTests() && PHP_OS_FAMILY !== 'Windows') {
+            $process->tty();
         }
 
-        $process->run();
+        $result = $process->run();
 
-        if (! $process->isSuccessful()) {
+        if (! $result->successful()) {
             if (! defined('PHPUNIT_COMPOSER_INSTALL')) {
                 $this->error('Failed to run command');
-                $this->error($process->getErrorOutput());
+                $this->error($result->errorOutput());
             }
 
             return false;

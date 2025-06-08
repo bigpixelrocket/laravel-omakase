@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Bigpixelrocket\LaravelOmakase;
 
 use Bigpixelrocket\LaravelOmakase\Commands\OmakaseCommand;

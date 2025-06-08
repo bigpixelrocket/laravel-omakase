@@ -1,75 +1,67 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Tests\Feature;
 
 use Bigpixelrocket\LaravelOmakase\Commands\OmakaseCommand;
 use Bigpixelrocket\LaravelOmakase\OmakaseServiceProvider;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Artisan;
-use Mockery;
 
 describe('OmakaseServiceProvider', function () {
     it('registers the OmakaseCommand when running in console', function () {
-        // Verify the command is available
-        expect(Artisan::all())->toHaveKey('laravel:omakase');
+        // Create and boot a fresh provider
+        $provider = new OmakaseServiceProvider(app());
+        $provider->register();
+        $provider->boot();
 
-        // Verify it's the correct command class
-        $command = Artisan::all()['laravel:omakase'];
-        expect($command)->toBeInstanceOf(OmakaseCommand::class);
-    });
+        // Verify the command is registered with correct signature
+        $registeredCommands = Artisan::all();
 
-    it('has the correct command signature and description', function () {
-        $command = Artisan::all()['laravel:omakase'];
+        expect($registeredCommands)
+            ->toHaveKey('laravel:omakase')
+            ->and($registeredCommands['laravel:omakase'])
+            ->toBeInstanceOf(OmakaseCommand::class);
 
-        expect($command->getName())->toBe('laravel:omakase');
-        expect($command->getDescription())->toBe('An opinionated menu for your next Laravel project');
+        // Verify command properties
+        $command = $registeredCommands['laravel:omakase'];
+        expect($command->getName())->toBe('laravel:omakase')
+            ->and($command->getDescription())->toBe('An opinionated menu for your next Laravel project');
     });
 
     it('does not register commands when not running in console', function () {
-        // Create a mock application that returns false for runningInConsole
-        $mockApp = Mockery::mock(Application::class);
-        $mockApp->shouldReceive('runningInConsole')->andReturn(false);
+        // Store the current command list
+        $commandsBefore = array_keys(Artisan::all());
 
-        // Create service provider with mocked app
+        // Create a mock application that simulates not running in console
+        $mockApp = $this->mock('Illuminate\Foundation\Application', function ($mock) {
+            $mock->shouldReceive('runningInConsole')->andReturn(false);
+            // The provider should not attempt to register commands
+            $mock->shouldNotReceive('commands');
+        });
+
+        // Create and boot the provider
         $provider = new OmakaseServiceProvider($mockApp);
-
-        // Since runningInConsole() returns false, boot() should not call commands()
-        // We can verify this by ensuring no exceptions are thrown and the provider can boot
         $provider->boot();
 
-        // Verify the provider was created successfully
-        expect($provider)->toBeInstanceOf(OmakaseServiceProvider::class);
+        // Command list should remain unchanged
+        expect(array_keys(Artisan::all()))->toBe($commandsBefore);
     });
 
-    it('can be instantiated with Laravel application', function () {
-        $provider = new OmakaseServiceProvider(app());
+    it('is registered as a service provider in the package', function () {
+        // Verify the provider is properly loaded
+        $loadedProviders = app()->getLoadedProviders();
 
-        expect($provider)->toBeInstanceOf(OmakaseServiceProvider::class);
+        expect($loadedProviders)->toHaveKey(OmakaseServiceProvider::class)
+            ->and($loadedProviders[OmakaseServiceProvider::class])->toBeTrue();
     });
 
-    it('boot method can be called without errors', function () {
+    it('provides no services during registration', function () {
         $provider = new OmakaseServiceProvider(app());
-
-        // Should not throw any exceptions
-        $provider->boot();
-
-        // Verify command is registered when running in console
-        expect(Artisan::all())->toHaveKey('laravel:omakase');
-    });
-
-    it('register method can be called without errors', function () {
-        $provider = new OmakaseServiceProvider(app());
-
-        // Should not throw any exceptions
         $provider->register();
 
-        // Verify the provider exists and can be instantiated
-        expect($provider)->toBeInstanceOf(OmakaseServiceProvider::class);
-    });
-
-    it('extends Laravel ServiceProvider', function () {
-        $provider = new OmakaseServiceProvider(app());
-
-        expect($provider)->toBeInstanceOf(\Illuminate\Support\ServiceProvider::class);
+        // The register method should be empty as per the implementation
+        // This test ensures no services are bound during registration
+        expect($provider->provides())->toBeEmpty();
     });
 });
