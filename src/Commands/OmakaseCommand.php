@@ -36,6 +36,7 @@ class OmakaseCommand extends Command
 
             $composerPackages = [
                 'require' => [
+                    'livewire/flux',
                     'livewire/livewire' => [
                         ['php', 'artisan', 'livewire:publish', '--config'],
                     ],
@@ -70,6 +71,8 @@ class OmakaseCommand extends Command
 
             $npmPackages = [
                 'dependencies' => [
+                    'tailwindcss',
+                    '@tailwindcss/vite',
                 ],
                 'devDependencies' => [
                     'prettier',
