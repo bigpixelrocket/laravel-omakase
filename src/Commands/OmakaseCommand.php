@@ -44,7 +44,11 @@ class OmakaseCommand extends Command
                     ],
                 ],
                 'require-dev' => [
-                    'barryvdh/laravel-ide-helper',
+                    'barryvdh/laravel-ide-helper' => [
+                        ['php', 'artisan', 'ide-helper:generate'],
+                        ['php', 'artisan', 'ide-helper:meta'],
+                        ['php', 'artisan', 'ide-helper:models', '--nowrite'],
+                    ],
                     'larastan/larastan',
                     'laravel/pint',
                     'pestphp/pest',
