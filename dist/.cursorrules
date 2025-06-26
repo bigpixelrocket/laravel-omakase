@@ -72,11 +72,86 @@ Use the Context7 MCP for documentation about version-specific syntaxt, features 
 
 **Frontend Implementation Standards**
 
-- Implement all user-facing features using Laravel Livewire components
-- Use the Livewire Flux UI kit for all interface components and layouts
-- Style components exclusively with Tailwind CSS utility classes
+- Implement all user-facing features using Laravel Livewire components exclusively
+- Use Laravel Flux UI components for all interface elements, layouts, and user interactions
+- Never use plain HTML form elements - always use Flux equivalents (`flux:input`, `flux:button`, `flux:select`, etc.)
+- Style components exclusively with Tailwind CSS utility classes and Flux's built-in theming system
 - Avoid traditional Blade views with separate JavaScript files in favor of Livewire's reactive approach
-- Leverage Flux components for consistent design patterns and accessibility standards
+- Leverage Flux components for consistent design patterns, accessibility standards, and modern UI/UX
+
+**Laravel Flux UI Library**
+
+- Always use `composer require livewire/flux` for installation and `composer update livewire/flux` for updates
+- Include `@fluxAppearance` in `<head>` and `@fluxScripts` before `</body>` in your main layout files
+- Configure Tailwind CSS with Flux imports: `@import '../../vendor/livewire/flux/dist/flux.css';`
+- Use Flux Pro features when available with `php artisan flux:activate` for enhanced components
+- Publish specific components only when customization is absolutely necessary with `php artisan flux:publish`
+
+**Flux Component Architecture & Patterns**
+
+- Follow Flux's component hierarchy: use `.group` suffix for grouped components (`flux:button.group`, `flux:input.group`)
+- Use `.item` suffix for child components in collections (`flux:menu.item`, `flux:navbar.item`, `flux:navlist.item`)
+- Understand component composition: many Flux components are designed to work together (e.g., `flux:dropdown` + `flux:menu`)
+- Use consistent prop patterns: `variant`, `size`, `icon`, `color`, `disabled`, `loading` across compatible components
+- Apply the `inset` prop for precise positioning without container stretching
+- Use `kbd` prop for keyboard shortcut hints in buttons, tooltips, and menu items
+
+**Flux Layout Components**
+
+- Structure layouts using `flux:header`, `flux:sidebar`, `flux:main` for consistent page architecture
+- Use `flux:brand` for company logos and names with consistent branding
+- Implement navigation with `flux:navbar`, `flux:navlist`, and `flux:navmenu` components based on context
+- Use `flux:spacer` for flexible layout spacing between elements
+- Apply `sticky` and `stashable` props to headers and sidebars for responsive behavior
+
+**Flux Form Components**
+
+- Replace all HTML inputs with Flux equivalents: `flux:input`, `flux:textarea`, `flux:select`, `flux:checkbox`, `flux:radio`
+- Use `flux:field`, `flux:label`, `flux:description`, and `flux:error` for complete form field composition
+- Apply consistent `wire:model` binding to all form components for Livewire reactivity
+- Use `variant` prop to apply different visual styles (`filled`, `outlined`, etc.)
+- Add icons with `icon` and `icon:trailing` props rather than composing separate icon components
+- Implement file uploads with `flux:input type="file"` with proper `wire:model` binding
+
+**Flux Interactive Components**
+
+- Use `flux:button` with appropriate `variant` props (`primary`, `destructive`, `ghost`, `subtle`)
+- Implement dropdowns with `flux:dropdown` + `flux:menu` composition pattern
+- Use `flux:modal` for dialog interfaces with proper `name` attributes for identification
+- Apply `flux:tooltip` for contextual help and information
+- Use `flux:badge` for status indicators, counts, and categorical labels
+- Implement `flux:tabs` with proper `wire:model` for tab state management
+
+**Flux Data Display Components**
+
+- Use `flux:table` with `.column`, `.row`, and `.cell` components for structured data
+- Apply `flux:card` for content grouping and visual hierarchy
+- Use `flux:heading` and `flux:text` for consistent typography
+- Implement `flux:avatar` for user representations with `src`, `name`, or `icon` props
+- Use `flux:separator` for visual content division
+
+**Flux Advanced Components**
+
+- Implement `flux:command` for command palette interfaces with search and keyboard navigation
+- Use `flux:autocomplete` for enhanced search and selection experiences
+- Apply `flux:editor` for rich text editing with configurable toolbar options
+- Use `flux:profile` for user information display in headers and sidebars
+
+**Icons & Visual Elements**
+
+- Use Flux's built-in Heroicons integration with `flux:icon.{name}` syntax
+- Apply icon props (`icon`, `icon:trailing`) for simpler icon integration
+- Use consistent icon variants (`mini`, `solid`, `outline`) across the application
+- Leverage `flux:icon.loading` with `animate-spin` class for loading states
+
+**Flux Theming & Customization**
+
+- Use CSS custom properties for consistent theming across the application
+- Apply Flux's built-in dark mode support with `$flux.appearance` Alpine.js integration
+- Use Tailwind's utility classes that merge automatically with Flux's internal styling
+- Apply `!important` modifier (`class="bg-red-500!"`) only when necessary to override Flux defaults
+- Customize accent colors and base colors through CSS variables when needed
+- Use Flux's responsive design patterns for mobile and desktop compatibility
 
 **Laravel Livewire**
 
@@ -94,6 +169,15 @@ Use the Context7 MCP for documentation about version-specific syntaxt, features 
 - Utilize `wire:loading` to provide visual feedback during component actions
 - Apply `wire:confirm` for user confirmation dialogs before destructive actions
 - Don't use Livewire Volt (keep component PHP logic and Blade templates separate)
+
+**Flux & Livewire Integration**
+
+- Always bind Flux form components to Livewire properties with `wire:model` or `wire:model.live`
+- Use Flux's automatic loading states with Livewire actions (`wire:click`, `wire:submit`)
+- Apply `wire:loading` directives to Flux components for custom loading indicators
+- Use Flux components in Livewire validation with proper `name` attributes
+- Integrate Flux modals with Livewire component state for dynamic content
+- Apply Flux's Alpine.js integration (`$flux.appearance`, `$flux.dark`) in Livewire components
 
 #### Error Handling & User Experience
 
