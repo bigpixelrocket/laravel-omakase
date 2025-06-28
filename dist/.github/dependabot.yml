@@ -1,4 +1,11 @@
 version: 2
+registries:
+  composer-fluxui:
+    type: composer-repository
+    url: https://composer.fluxui.dev
+    username: ${{secrets.FLUX_USERNAME}}
+    password: ${{secrets.FLUX_LICENSE_KEY}}
+
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -18,6 +25,8 @@ updates:
     labels:
       - "dependencies"
       - "php"
+    registries:
+      - composer-fluxui
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]

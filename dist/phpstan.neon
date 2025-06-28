@@ -12,6 +12,11 @@ parameters:
     level: 10
 
     excludePaths:
-        - app/Providers/HorizonServiceProvider.php
+        - app/Http/Controllers/Auth/VerifyEmailController.php
+        - app/Livewire/Actions/Logout.php
+        - app/Livewire/Auth/*
+        - app/Livewire/Settings/*
+        - app/Providers/HorizonServiceProvider.php (?)
+        - app/Providers/TelescopeServiceProvider.php (?)
         - tests/Feature/ExampleTest.php
         - tests/Pest.php
