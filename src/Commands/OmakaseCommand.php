@@ -11,21 +11,33 @@ use Illuminate\Support\Facades\Process;
 class OmakaseCommand extends Command
 {
     protected $signature = 'laravel:omakase
+        {--files : Only copy files}
         {--composer : Install only composer packages}
         {--npm : Install only npm packages}
-        {--files : Only copy files}
         {--force : Override existing files when copying}';
 
     protected $description = 'An opinionated menu for your next Laravel project';
 
     public function handle(): int
     {
+        $runFiles = $this->option('files');
         $runComposer = $this->option('composer');
         $runNpm = $this->option('npm');
-        $runFiles = $this->option('files');
 
         // If no specific options are provided, run everything
-        $runAll = ! $runComposer && ! $runNpm && ! $runFiles;
+        $runAll = ! $runFiles && ! $runComposer && ! $runNpm;
+
+        if ($runAll || $runFiles) {
+            $this->newLine();
+            $this->line('╔═══════════════════════════════════════════╗');
+            $this->line('║              Copying files                ║');
+            $this->line('╚═══════════════════════════════════════════╝');
+            $this->newLine();
+
+            if (! $this->copyFiles()) {
+                return self::FAILURE;
+            }
+        }
 
         if ($runAll || $runComposer) {
             $this->newLine();
@@ -36,22 +48,36 @@ class OmakaseCommand extends Command
 
             $composerPackages = [
                 'require' => [
-                    'livewire/flux',
                     'livewire/livewire' => [
-                        ['php', 'artisan', 'livewire:publish', '--config'],
+                        'commands' => [
+                            ['php', 'artisan', 'livewire:publish', '--config'],
+                        ],
                     ],
+                    'livewire/flux',
                     'spatie/laravel-data' => [
-                        ['php', 'artisan', 'vendor:publish', '--provider=Spatie\LaravelData\LaravelDataServiceProvider', '--tag=data-config'],
+                        'commands' => [
+                            ['php', 'artisan', 'vendor:publish', '--provider=Spatie\LaravelData\LaravelDataServiceProvider', '--tag=data-config'],
+                        ],
                     ],
                 ],
                 'require-dev' => [
                     'barryvdh/laravel-ide-helper' => [
-                        ['php', 'artisan', 'ide-helper:generate'],
-                        ['php', 'artisan', 'ide-helper:meta'],
-                        ['php', 'artisan', 'ide-helper:models', '--nowrite'],
+                        'commands' => [
+                            ['php', 'artisan', 'ide-helper:generate'],
+                            ['php', 'artisan', 'ide-helper:meta'],
+                            ['php', 'artisan', 'ide-helper:models', '--nowrite'],
+                        ],
                     ],
-                    'larastan/larastan',
-                    'laravel/pint',
+                    'laravel/pint' => [
+                        'optional_commands' => [
+                            ['vendor/bin/pint', '--repair'],
+                        ],
+                    ],
+                    'larastan/larastan' => [
+                        'optional_commands' => [
+                            ['vendor/bin/phpstan', 'analyse'],
+                        ],
+                    ],
                     'pestphp/pest',
                 ],
             ];
@@ -85,38 +111,32 @@ class OmakaseCommand extends Command
             }
         }
 
-        if ($runAll || $runFiles) {
-            $this->newLine();
-            $this->line('╔═══════════════════════════════════════════╗');
-            $this->line('║              Copying files                ║');
-            $this->line('╚═══════════════════════════════════════════╝');
-            $this->newLine();
-
-            if (! $this->copyFiles()) {
-                return self::FAILURE;
-            }
-        }
-
         return self::SUCCESS;
     }
 
     /**
-     * @param  array<string, array<string|array<array<string>>>>  $packages
+     * @param  array<string, array<string|array<string, array<array<string>>>>>  $packages
      * @param  array<string>  $command
      */
     protected function installPackages(array $packages, array $command, string $devFlag = '', string $devFlagValue = '--dev'): bool
     {
         foreach ($packages as $type => $typePackages) {
             $commands = [];
+            $optionalCommands = [];
             $packageNames = [];
 
-            /** @var string|array<array<string>> $v */
+            /** @var string|array<string, array<array<string>>> $v */
             foreach ($typePackages as $k => $v) {
                 if (is_string($v)) {
                     $packageNames[] = $v;
                 } else {
                     $packageNames[] = (string) $k;
-                    $commands = [...$commands, ...$v];
+                    if (isset($v['commands'])) {
+                        $commands = [...$commands, ...$v['commands']];
+                    }
+                    if (isset($v['optional_commands'])) {
+                        $optionalCommands = [...$optionalCommands, ...$v['optional_commands']];
+                    }
                 }
             }
 
@@ -125,9 +145,14 @@ class OmakaseCommand extends Command
                 $baseCommand[] = $devFlagValue;
             }
 
-            $commands = [[...$baseCommand, ...$packageNames], ...$commands];
-            if (! $this->execCommands($commands)) {
+            $allCommands = [[...$baseCommand, ...$packageNames], ...$commands];
+            if (! $this->execCommands($allCommands)) {
                 return false;
+            }
+
+            // Execute optional commands that don't fail the installation
+            if (! empty($optionalCommands)) {
+                $this->execOptionalCommands($optionalCommands);
             }
         }
 
@@ -150,9 +175,22 @@ class OmakaseCommand extends Command
     }
 
     /**
+     * @param  array<array<string>>  $commands
+     */
+    protected function execOptionalCommands(array $commands): void
+    {
+        foreach ($commands as $command) {
+            $this->warn(implode(' ', $command));
+            if (! $this->exec($command, optional: true)) {
+                $this->comment('Optional command failed but continuing installation...');
+            }
+        }
+    }
+
+    /**
      * @param  array<string>  $command
      */
-    protected function exec(array $command): bool
+    protected function exec(array $command, bool $optional = false): bool
     {
         // Use Laravel's Process facade which can be faked in tests
         $process = Process::command($command);
@@ -166,8 +204,15 @@ class OmakaseCommand extends Command
 
         if (! $result->successful()) {
             if (! defined('PHPUNIT_COMPOSER_INSTALL')) {
-                $this->error('Failed to run command');
-                $this->error($result->errorOutput());
+                if ($optional) {
+                    $this->comment('Optional command failed: '.implode(' ', $command));
+                    if ($result->errorOutput()) {
+                        $this->comment($result->errorOutput());
+                    }
+                } else {
+                    $this->error('Failed to run command');
+                    $this->error($result->errorOutput());
+                }
             }
 
             return false;

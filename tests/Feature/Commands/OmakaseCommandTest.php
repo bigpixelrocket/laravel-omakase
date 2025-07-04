@@ -233,8 +233,11 @@ describe('OmakaseCommand', function () {
                 '*' => function (PendingProcess $process) {
                     $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
 
-                    // composer require commands are longer (have many packages)
-                    if (str_contains($command, 'composer') || str_contains($command, 'php artisan')) {
+                    // composer and related commands should succeed
+                    if (str_contains($command, 'composer') ||
+                        str_contains($command, 'php artisan') ||
+                        str_contains($command, 'vendor/bin/pint') ||
+                        str_contains($command, 'vendor/bin/phpstan')) {
                         return Process::result('', 0);
                     }
 
@@ -260,6 +263,43 @@ describe('OmakaseCommand', function () {
                 $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
 
                 return str_contains($command, 'npm install');
+            });
+        });
+
+        it('handles optional command failures gracefully', function () {
+            Process::fake([
+                '*' => function (PendingProcess $process) {
+                    $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                    // Make pint and phpstan fail
+                    if (str_contains($command, 'vendor/bin/pint') ||
+                        str_contains($command, 'vendor/bin/phpstan')) {
+                        return Process::result(
+                            errorOutput: 'Code style issues found',
+                            exitCode: 1
+                        );
+                    }
+
+                    // Other commands succeed
+                    return Process::result('', 0);
+                },
+            ]);
+
+            artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsOutputToContain('Optional command failed but continuing installation...')
+                ->assertSuccessful();
+
+            // Verify that the optional commands were attempted
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'vendor/bin/pint --repair');
+            });
+
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'vendor/bin/phpstan analyse');
             });
         });
 
@@ -359,11 +399,55 @@ describe('OmakaseCommand', function () {
             artisan(OmakaseCommand::class, ['--composer' => true])
                 ->assertSuccessful();
 
-            // Verify that post-install artisan commands are run
+            // Verify that required post-install artisan commands are run
             Process::assertRan(function (PendingProcess $process) {
                 $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
 
                 return str_contains($command, 'php artisan');
+            });
+
+            // Verify that optional post-install commands are run
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'vendor/bin/pint --repair');
+            });
+
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'vendor/bin/phpstan analyse');
+            });
+        });
+
+        it('verifies command structure with required and optional commands', function () {
+            Process::fake();
+
+            artisan(OmakaseCommand::class, ['--composer' => true])
+                ->assertSuccessful();
+
+            // Count total commands run
+            $totalCommands = 0;
+            Process::assertRan(function (PendingProcess $process) use (&$totalCommands) {
+                $totalCommands++;
+
+                return true;
+            });
+
+            // Should run multiple commands including both required and optional
+            expect($totalCommands)->toBeGreaterThan(5);
+
+            // Verify specific command types were run
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'composer require');
+            });
+
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'php artisan livewire:publish');
             });
         });
     });

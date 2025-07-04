@@ -66,8 +66,8 @@ php artisan laravel:omakase --files --force
 **Development Dependencies:**
 
 - `barryvdh/laravel-ide-helper` - IDE helper for Laravel
-- `larastan/larastan` - PHPStan for Laravel
-- `laravel/pint` - Code style fixer
+- `larastan/larastan` - PHPStan for Laravel (automatically runs static analysis after installation)
+- `laravel/pint` - Code style fixer (automatically fixes code style after installation)
 - `pestphp/pest` - Testing framework
 
 ### NPM Packages
@@ -119,6 +119,17 @@ The package copies the following configuration files to your project:
 | `--force`    | Override existing files when copying (use with `--files`) |
 
 ## Post-Installation
+
+### Automatic Code Quality Checks
+
+The package automatically runs code quality tools after installation:
+
+- **Laravel Pint**: Automatically fixes code style issues in your project
+- **PHPStan**: Automatically runs static analysis to identify potential issues
+
+These automatic checks help ensure your code follows best practices from the start.
+
+### Additional Setup
 
 Some packages may require additional setup steps:
 

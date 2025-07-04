@@ -63,5 +63,4 @@ jobs:
         run: npm run build
 
       - name: Execute Tests With Coverage
-        run: |
-          ./vendor/bin/pest --parallel --coverage --coverage-text --min=80
+        run: vendor/bin/pest --parallel --coverage --coverage-text --min=80
