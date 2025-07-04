@@ -53,7 +53,6 @@ class OmakaseCommand extends Command
                     'larastan/larastan',
                     'laravel/pint',
                     'pestphp/pest',
-                    'soloterm/solo',
                 ],
             ];
 

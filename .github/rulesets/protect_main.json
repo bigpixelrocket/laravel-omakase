@@ -8,9 +8,7 @@
   "conditions": {
     "ref_name": {
       "exclude": [],
-      "include": [
-        "refs/heads/main"
-      ]
+      "include": ["refs/heads/main"]
     }
   },
   "rules": [
@@ -52,10 +50,8 @@
         "require_code_owner_review": false,
         "require_last_push_approval": false,
         "required_review_thread_resolution": true,
-        "automatic_copilot_code_review_enabled": false,
-        "allowed_merge_methods": [
-          "squash"
-        ]
+        "automatic_copilot_code_review_enabled": true,
+        "allowed_merge_methods": ["squash"]
       }
     },
     {
