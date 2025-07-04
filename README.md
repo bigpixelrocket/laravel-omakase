@@ -69,7 +69,6 @@ php artisan laravel:omakase --files --force
 - `larastan/larastan` - PHPStan for Laravel
 - `laravel/pint` - Code style fixer
 - `pestphp/pest` - Testing framework
-- `soloterm/solo` - Terminal utilities
 
 ### NPM Packages
 
