@@ -11,9 +11,9 @@ use Illuminate\Support\Facades\Process;
 
 use function Pest\Laravel\artisan;
 
-describe('OmakaseCommand', function () {
-    describe('command interface', function () {
-        it('has correct command signature and description', function () {
+describe('OmakaseCommand', function (): void {
+    describe('command interface', function (): void {
+        it('has correct command signature and description', function (): void {
             $command = new OmakaseCommand;
 
             expect($command->getName())->toBe('laravel:omakase');
@@ -31,12 +31,12 @@ describe('OmakaseCommand', function () {
         });
     });
 
-    describe('command options', function () {
-        beforeEach(function () {
+    describe('command options', function (): void {
+        beforeEach(function (): void {
             Process::fake();
         });
 
-        it('installs packages and copies files by default', function () {
+        it('installs packages and copies files by default', function (): void {
             artisan(OmakaseCommand::class)
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->expectsOutputToContain('Installing NPM Packages')
@@ -57,7 +57,7 @@ describe('OmakaseCommand', function () {
             });
         });
 
-        it('only installs composer packages with the --composer option', function () {
+        it('only installs composer packages with the --composer option', function (): void {
             artisan(OmakaseCommand::class, ['--composer' => true])
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->doesntExpectOutputToContain('Installing NPM Packages')
@@ -78,7 +78,7 @@ describe('OmakaseCommand', function () {
             });
         });
 
-        it('only installs npm packages with the --npm option', function () {
+        it('only installs npm packages with the --npm option', function (): void {
             artisan(OmakaseCommand::class, ['--npm' => true])
                 ->doesntExpectOutputToContain('Installing Composer Packages')
                 ->expectsOutputToContain('Installing NPM Packages')
@@ -99,7 +99,7 @@ describe('OmakaseCommand', function () {
             });
         });
 
-        it('only copies files with the --files option', function () {
+        it('only copies files with the --files option', function (): void {
             artisan(OmakaseCommand::class, ['--files' => true])
                 ->doesntExpectOutputToContain('Installing Composer Packages')
                 ->doesntExpectOutputToContain('Installing NPM Packages')
@@ -110,7 +110,7 @@ describe('OmakaseCommand', function () {
             Process::assertNothingRan();
         });
 
-        it('handles multiple option combinations correctly', function () {
+        it('handles multiple option combinations correctly', function (): void {
             artisan(OmakaseCommand::class, ['--composer' => true, '--files' => true])
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->expectsOutputToContain('Copying files')
@@ -132,15 +132,15 @@ describe('OmakaseCommand', function () {
         });
     });
 
-    describe('file copying', function () {
-        beforeEach(function () {
+    describe('file copying', function (): void {
+        beforeEach(function (): void {
             Process::fake();
         });
 
-        it('copies all expected dist files', function () {
+        it('copies all expected dist files', function (): void {
             $tempDir = createTempDirectory('dist_copy_');
 
-            withTemporaryBasePath($tempDir, function () use ($tempDir) {
+            withTemporaryBasePath($tempDir, function () use ($tempDir): void {
                 artisan(OmakaseCommand::class, ['--files' => true])->assertSuccessful();
 
                 // Verify that files are being copied from dist
@@ -151,10 +151,10 @@ describe('OmakaseCommand', function () {
             File::deleteDirectory($tempDir);
         });
 
-        it('respects force option when copying files', function () {
+        it('respects force option when copying files', function (): void {
             $tempDir = createTempDirectory('force_');
 
-            withTemporaryBasePath($tempDir, function () use ($tempDir) {
+            withTemporaryBasePath($tempDir, function () use ($tempDir): void {
                 // First copy
                 artisan(OmakaseCommand::class, ['--files' => true])->assertSuccessful();
                 expect(File::exists("{$tempDir}/pint.json"))->toBeTrue();
@@ -188,10 +188,10 @@ describe('OmakaseCommand', function () {
             File::deleteDirectory($tempDir);
         });
 
-        it('creates nested directories when copying files', function () {
+        it('creates nested directories when copying files', function (): void {
             $tempDir = createTempDirectory('nested_copy_');
 
-            withTemporaryBasePath($tempDir, function () use ($tempDir) {
+            withTemporaryBasePath($tempDir, function () use ($tempDir): void {
                 artisan(OmakaseCommand::class, ['--files' => true])->assertSuccessful();
 
                 // Verify nested directories were created with proper structure
@@ -208,8 +208,8 @@ describe('OmakaseCommand', function () {
         });
     });
 
-    describe('error handling', function () {
-        it('handles composer installation failure gracefully', function () {
+    describe('error handling', function (): void {
+        it('handles composer installation failure gracefully', function (): void {
             Process::fake([
                 '*' => Process::result(
                     errorOutput: 'Package not found',
@@ -227,7 +227,7 @@ describe('OmakaseCommand', function () {
             });
         });
 
-        it('handles npm installation failure gracefully', function () {
+        it('handles npm installation failure gracefully', function (): void {
             // We need to check command length to differentiate between composer and npm
             Process::fake([
                 '*' => function (PendingProcess $process) {
@@ -266,7 +266,7 @@ describe('OmakaseCommand', function () {
             });
         });
 
-        it('handles optional command failures gracefully', function () {
+        it('handles optional command failures gracefully', function (): void {
             Process::fake([
                 '*' => function (PendingProcess $process) {
                     $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
@@ -303,7 +303,7 @@ describe('OmakaseCommand', function () {
             });
         });
 
-        it('handles file copy exception gracefully', function () {
+        it('handles file copy exception gracefully', function (): void {
             Process::fake();
 
             // Create a custom command that simulates a file copy error
@@ -329,7 +329,7 @@ describe('OmakaseCommand', function () {
                 ->assertFailed();
         });
 
-        it('handles missing dist directory gracefully', function () {
+        it('handles missing dist directory gracefully', function (): void {
             Process::fake();
 
             // Create a custom command instance with a non-existent dist path
@@ -357,8 +357,8 @@ describe('OmakaseCommand', function () {
         });
     });
 
-    describe('package verification', function () {
-        it('verifies composer packages are installed', function () {
+    describe('package verification', function (): void {
+        it('verifies composer packages are installed', function (): void {
             Process::fake();
 
             artisan(OmakaseCommand::class, ['--composer' => true])
@@ -379,7 +379,7 @@ describe('OmakaseCommand', function () {
             });
         });
 
-        it('verifies npm packages are installed', function () {
+        it('verifies npm packages are installed', function (): void {
             Process::fake();
 
             artisan(OmakaseCommand::class, ['--npm' => true])
@@ -393,7 +393,7 @@ describe('OmakaseCommand', function () {
             });
         });
 
-        it('verifies post-install commands are executed', function () {
+        it('verifies post-install commands are executed', function (): void {
             Process::fake();
 
             artisan(OmakaseCommand::class, ['--composer' => true])
@@ -420,7 +420,7 @@ describe('OmakaseCommand', function () {
             });
         });
 
-        it('verifies command structure with required and optional commands', function () {
+        it('verifies command structure with required and optional commands', function (): void {
             Process::fake();
 
             artisan(OmakaseCommand::class, ['--composer' => true])
@@ -452,8 +452,8 @@ describe('OmakaseCommand', function () {
         });
     });
 
-    describe('process execution', function () {
-        it('disables TTY on Windows', function () {
+    describe('process execution', function (): void {
+        it('disables TTY on Windows', function (): void {
             // Test Windows behavior
             Process::fake();
 
@@ -479,7 +479,7 @@ describe('OmakaseCommand', function () {
             });
         });
 
-        it('shows command being executed', function () {
+        it('shows command being executed', function (): void {
             Process::fake();
 
             artisan(OmakaseCommand::class, ['--composer' => true])
@@ -494,7 +494,7 @@ describe('OmakaseCommand', function () {
             }, 2);
         });
 
-        it('suppresses error output when PHPUNIT_COMPOSER_INSTALL is defined', function () {
+        it('suppresses error output when PHPUNIT_COMPOSER_INSTALL is defined', function (): void {
             $wasDefinedBefore = defined('PHPUNIT_COMPOSER_INSTALL');
             $originalValue = $wasDefinedBefore ? PHPUNIT_COMPOSER_INSTALL : null;
 
@@ -520,8 +520,8 @@ describe('OmakaseCommand', function () {
         });
     });
 
-    describe('edge cases', function () {
-        it('handles empty dist directory gracefully', function () {
+    describe('edge cases', function (): void {
+        it('handles empty dist directory gracefully', function (): void {
             Process::fake();
 
             $emptyDir = createTempDirectory('empty_dist_');
@@ -530,12 +530,9 @@ describe('OmakaseCommand', function () {
                 // Create a custom command with empty dist directory
                 $command = new class($emptyDir) extends OmakaseCommand
                 {
-                    private string $customDistPath;
-
-                    public function __construct(string $distPath)
+                    public function __construct(private readonly string $customDistPath)
                     {
                         parent::__construct();
-                        $this->customDistPath = $distPath;
                     }
 
                     protected function copyFiles(): bool
@@ -562,7 +559,7 @@ describe('OmakaseCommand', function () {
             }
         });
 
-        it('validates all command option combinations', function () {
+        it('validates all command option combinations', function (): void {
             Process::fake();
 
             $combinations = [
