@@ -201,7 +201,7 @@ describe('OmakaseCommand', function () {
                 // Verify files exist in nested directories
                 $workflowFiles = File::files("{$tempDir}/.github/workflows");
                 expect(count($workflowFiles))->toBeGreaterThan(0)
-                    ->and(count($workflowFiles))->toBe(5); // Should have exactly 5 workflow files
+                    ->and(count($workflowFiles))->toBe(4); // Should have exactly 4 workflow files
             });
 
             File::deleteDirectory($tempDir);
