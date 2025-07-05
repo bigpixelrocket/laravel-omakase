@@ -10,12 +10,12 @@ arch('package uses strict types')
 // Ensure commands extend the base Laravel Command class
 arch('commands extend Laravel Command')
     ->expect('Bigpixelrocket\LaravelOmakase\Commands')
-    ->toExtend('Illuminate\Console\Command');
+    ->toExtend(\Illuminate\Console\Command::class);
 
 // Ensure service providers extend the base Laravel ServiceProvider
 arch('service providers extend Laravel ServiceProvider')
-    ->expect('Bigpixelrocket\LaravelOmakase\OmakaseServiceProvider')
-    ->toExtend('Illuminate\Support\ServiceProvider');
+    ->expect(\Bigpixelrocket\LaravelOmakase\OmakaseServiceProvider::class)
+    ->toExtend(\Illuminate\Support\ServiceProvider::class);
 
 // Ensure no debugging functions are left in the code
 arch('no debug statements')
@@ -38,7 +38,7 @@ arch('source code uses Laravel facades for file operations')
     ->expect('Bigpixelrocket\LaravelOmakase')
     ->not->toUse(['file_get_contents', 'file_put_contents', 'fopen', 'fwrite', 'unlink'])
     ->ignoring([
-        'Bigpixelrocket\LaravelOmakase\Commands\OmakaseCommand', // copyFile method uses file_get_contents/file_put_contents for performance
+        \Bigpixelrocket\LaravelOmakase\Commands\OmakaseCommand::class, // copyFile method uses file_get_contents/file_put_contents for performance
     ]);
 
 // Ensure commands have proper structure

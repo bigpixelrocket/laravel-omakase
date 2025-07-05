@@ -14,9 +14,7 @@ uses(Tests\TestCase::class)->in('Feature');
 |--------------------------------------------------------------------------
 */
 
-expect()->extend('toBeOne', function ($value) {
-    return expect($value)->toBe(1);
-});
+expect()->extend('toBeOne', fn ($value) => expect($value)->toBe(1));
 
 /**
  * Create a temporary directory with automatic cleanup tracking.

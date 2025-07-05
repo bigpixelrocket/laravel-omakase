@@ -8,8 +8,8 @@ use Bigpixelrocket\LaravelOmakase\Commands\OmakaseCommand;
 use Bigpixelrocket\LaravelOmakase\OmakaseServiceProvider;
 use Illuminate\Support\Facades\Artisan;
 
-describe('OmakaseServiceProvider', function () {
-    it('registers the OmakaseCommand when running in console', function () {
+describe('OmakaseServiceProvider', function (): void {
+    it('registers the OmakaseCommand when running in console', function (): void {
         // Create and boot a fresh provider
         $provider = new OmakaseServiceProvider(app());
         $provider->register();
@@ -29,12 +29,12 @@ describe('OmakaseServiceProvider', function () {
             ->and($command->getDescription())->toBe('An opinionated menu for your next Laravel project');
     });
 
-    it('does not register commands when not running in console', function () {
+    it('does not register commands when not running in console', function (): void {
         // Store the current command list
         $commandsBefore = array_keys(Artisan::all());
 
         // Create a mock application that simulates not running in console
-        $mockApp = $this->mock('Illuminate\Foundation\Application', function ($mock) {
+        $mockApp = $this->mock(\Illuminate\Foundation\Application::class, function ($mock): void {
             $mock->shouldReceive('runningInConsole')->andReturn(false);
             // The provider should not attempt to register commands
             $mock->shouldNotReceive('commands');
@@ -48,7 +48,7 @@ describe('OmakaseServiceProvider', function () {
         expect(array_keys(Artisan::all()))->toBe($commandsBefore);
     });
 
-    it('is registered as a service provider in the package', function () {
+    it('is registered as a service provider in the package', function (): void {
         // Verify the provider is properly loaded
         $loadedProviders = app()->getLoadedProviders();
 
@@ -56,7 +56,7 @@ describe('OmakaseServiceProvider', function () {
             ->and($loadedProviders[OmakaseServiceProvider::class])->toBeTrue();
     });
 
-    it('provides no services during registration', function () {
+    it('provides no services during registration', function (): void {
         $provider = new OmakaseServiceProvider(app());
         $provider->register();
 
