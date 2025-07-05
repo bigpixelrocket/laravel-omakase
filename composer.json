@@ -31,7 +31,8 @@
     "barryvdh/laravel-ide-helper": "^3.5",
     "pestphp/pest": "^3.8",
     "orchestra/testbench": "^10.4",
-    "pestphp/pest-plugin-laravel": "^3.2"
+    "pestphp/pest-plugin-laravel": "^3.2",
+    "rector/rector": "^2.1"
   },
   "config": {
     "allow-plugins": {
