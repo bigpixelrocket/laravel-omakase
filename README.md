@@ -105,7 +105,6 @@ The package copies the following configuration files to your project:
   - `.github/workflows/pest.yml` - Pest testing workflow
   - `.github/workflows/phpstan.yml` - PHPStan analysis workflow
   - `.github/workflows/pint.yml` - Code style checking workflow
-  - `.github/workflows/release.yml` - Release automation workflow
   - `.github/workflows/dependabot-automerge.yml` - Dependabot auto-merge workflow
   - `.github/dependabot.yml` - Dependabot configuration
 
