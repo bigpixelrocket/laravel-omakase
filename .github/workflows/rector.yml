@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  pint:
+  rector:
     runs-on: ubuntu-latest
 
     steps:
