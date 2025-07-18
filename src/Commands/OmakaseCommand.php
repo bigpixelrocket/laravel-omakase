@@ -68,6 +68,11 @@ class OmakaseCommand extends Command
                             ['php', 'artisan', 'ide-helper:models', '--nowrite'],
                         ],
                     ],
+                    'rector/rector' => [
+                        'optional_commands' => [
+                            ['vendor/bin/rector'],
+                        ],
+                    ],
                     'laravel/pint' => [
                         'optional_commands' => [
                             ['vendor/bin/pint', '--repair'],

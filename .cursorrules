@@ -183,14 +183,15 @@ Run the following checks before committing anything:
 Run these commands in sequence before committing:
 
 ```bash
-# 1. Fix code style issues second
-php vendor/bin/pint
+# 1. Fix code style issues first with Rector and Pint
+vendor/bin/rector
+vendor/bin/pint
 
-# 2. Check static analysis first
-php vendor/bin/phpstan analyse
+# 2. Check static analysis second
+vendor/bin/phpstan analyse
 
 # 3. Verify tests still pass (with coverage)
-php vendor/bin/pest --parallel --coverage --coverage-text --min=80
+vendor/bin/pest --parallel --coverage --coverage-text --min=80
 
 # 4. Make sure you read and followed the testing guide closely
 cat TESTING.md
