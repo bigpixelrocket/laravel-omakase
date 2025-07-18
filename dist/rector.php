@@ -11,7 +11,7 @@ return RectorConfig::configure()
         FileCacheStorage::class,
     )
     ->withPaths([
-        __DIR__.'/src',
+        __DIR__.'/app',
         __DIR__.'/tests',
     ])
     ->withPhpSets()
