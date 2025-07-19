@@ -107,6 +107,7 @@ The package copies the following configuration files to your project:
   - `.github/workflows/pint.yml` - Code style checking workflow
   - `.github/workflows/dependabot-automerge.yml` - Dependabot auto-merge workflow
   - `.github/dependabot.yml` - Dependabot configuration
+  - `.github/rulesets/protect_main.json` - Branch protection ruleset
 
 ## Command Options
 
