@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Bigpixelrocket\LaravelOmakase;
 
+use Bigpixelrocket\LaravelOmakase\Commands\DbMigrateCommand;
 use Bigpixelrocket\LaravelOmakase\Commands\OmakaseCommand;
 use Illuminate\Support\ServiceProvider;
 
@@ -13,6 +14,7 @@ class OmakaseServiceProvider extends ServiceProvider
     {
         if ($this->app->runningInConsole()) {
             $this->commands([
+                DbMigrateCommand::class,
                 OmakaseCommand::class,
             ]);
         }

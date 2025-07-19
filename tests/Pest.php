@@ -43,3 +43,13 @@ function withTemporaryBasePath(string $tempPath, callable $callback)
         $app->setBasePath($original);
     }
 }
+
+/**
+ * Convert the command of a PendingProcess (string|array) to a readable string.
+ */
+function commandToString(\Illuminate\Process\PendingProcess $process): string
+{
+    return is_array($process->command)
+        ? implode(' ', $process->command)
+        : $process->command;
+}

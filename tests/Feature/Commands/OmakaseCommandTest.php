@@ -1,5 +1,15 @@
 <?php
 
+//
+// OmakaseCommand Test Suite
+// -------------------------------------------------------------------------------
+//
+// This file verifies that the `laravel:omakase` command behaves correctly under
+// various scenarios. Tests are organised into logical groups matching the
+// command's responsibilities: interface, option combinations, file copying,
+// error handling, package verification, process execution and edge-cases.
+//
+
 declare(strict_types=1);
 
 namespace Tests\Feature\Commands;
@@ -11,7 +21,21 @@ use Illuminate\Support\Facades\Process;
 
 use function Pest\Laravel\artisan;
 
+//
+// Helpers
+// -------------------------------------------------------------------------------
+//
+// Utility helpers shared across test suites are in tests/Pest.php
+//
+
 describe('OmakaseCommand', function (): void {
+    //
+    // Command Interface
+    // -------------------------------------------------------------------------------
+    //
+    // Verifies that the command exposes the expected signature, description and
+    // option defaults.
+    //
     describe('command interface', function (): void {
         it('has correct command signature and description', function (): void {
             $command = new OmakaseCommand;
@@ -31,6 +55,13 @@ describe('OmakaseCommand', function (): void {
         });
     });
 
+    //
+    // Option Combinations
+    // -------------------------------------------------------------------------------
+    //
+    // Tests default behaviour and every supported combination of the --composer,
+    // --npm and --files flags.
+    //
     describe('command options', function (): void {
         beforeEach(function (): void {
             Process::fake();
@@ -132,6 +163,13 @@ describe('OmakaseCommand', function (): void {
         });
     });
 
+    //
+    // File Copying
+    // -------------------------------------------------------------------------------
+    //
+    // Ensures dist files are copied, 'force' overwrites and nested directories are
+    // created as expected.
+    //
     describe('file copying', function (): void {
         beforeEach(function (): void {
             Process::fake();
@@ -213,6 +251,13 @@ describe('OmakaseCommand', function (): void {
         });
     });
 
+    //
+    // Error Handling
+    // -------------------------------------------------------------------------------
+    //
+    // Confirms the command surfaces failures gracefully without breaking unrelated
+    // tasks.
+    //
     describe('error handling', function (): void {
         it('handles composer installation failure gracefully', function (): void {
             Process::fake([
@@ -362,6 +407,13 @@ describe('OmakaseCommand', function (): void {
         });
     });
 
+    //
+    // Package Verification
+    // -------------------------------------------------------------------------------
+    //
+    // Validates that composer/npm installs and post-install commands are executed
+    // correctly.
+    //
     describe('package verification', function (): void {
         it('verifies composer packages are installed', function (): void {
             Process::fake();
@@ -457,6 +509,12 @@ describe('OmakaseCommand', function (): void {
         });
     });
 
+    //
+    // Process Execution
+    // -------------------------------------------------------------------------------
+    //
+    // Covers TTY behaviour, command output visibility and suppressed error output.
+    //
     describe('process execution', function (): void {
         it('disables TTY on Windows', function (): void {
             // Test Windows behavior
@@ -525,6 +583,13 @@ describe('OmakaseCommand', function (): void {
         });
     });
 
+    //
+    // Edge Cases
+    // -------------------------------------------------------------------------------
+    //
+    // Additional edge-case scenarios such as empty dist directory and exhaustive
+    // flag permutations.
+    //
     describe('edge cases', function (): void {
         it('handles empty dist directory gracefully', function (): void {
             Process::fake();
