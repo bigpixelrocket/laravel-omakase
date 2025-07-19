@@ -15,35 +15,41 @@ class DbMigrateCommand extends Command
 
     public function handle(): int
     {
-        // Sadly the --help option never reaches the command, so we need a different help param
-        // and we can't use $this->call(...) because it doesn't pass the --help option to the command
+        //
+        // Help Command Handling
+        // -------------------------------------------------------------------------------
 
-        // Use Laravel's Process facade to run the migrate command with --help
+        // Sadly the --help option never reaches the command, so we need a different help param and
+        // we can't use $this->call(...) because it doesn't pass the --help option to the command
+        // so we use Laravel's Process facade to run the migrate command with --help
         if ($this->option('migrate-help')) {
-            // Try to enable TTY mode to preserve output formatting
             try {
                 // TTY mode will directly output to the terminal with proper formatting
                 $result = Process::tty()->run(['php', 'artisan', 'migrate', '--help']);
+
+                // TTY handles all output directly, so we just return the exit code
+                return $result->exitCode() ?? 1;
+
             } catch (\Throwable) {
                 // TTY not supported (like in test environments), fallback to regular process
                 $result = Process::run(['php', 'artisan', 'migrate', '--help']);
 
-                // Manually output the result since TTY is not available
-                $this->output->write($result->output());
+                // In non-TTY mode, manually handle output based on success/failure
+                if ($result->successful()) {
+                    $this->output->write($result->output());
 
-                if ($result->failed()) {
+                    return 0;
+                } else {
                     $this->output->write($result->errorOutput());
+
+                    return $result->exitCode() ?? 1;
                 }
             }
-
-            if ($result->failed()) {
-                $this->output->write($result->errorOutput());
-
-                return 1;
-            }
-
-            return 0;
         }
+
+        //
+        // Delegate to Migrate Command
+        // -------------------------------------------------------------------------------
 
         // Get all arguments and options from the input, excluding the command name itself
         $arguments = $this->input->getArguments();
