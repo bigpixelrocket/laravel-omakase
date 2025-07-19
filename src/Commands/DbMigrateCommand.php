@@ -9,9 +9,17 @@ use Illuminate\Support\Facades\Process;
 
 class DbMigrateCommand extends Command
 {
-    protected $signature = 'db:migrate {--migrate-help}';
+    protected $signature = 'db:migrate {--migrate-help : Show help for the migrate command} {--debug : Show debug information about parameters being passed}';
 
     protected $description = 'Alias for the migrate command - Run the database migrations (use --migrate-help to see migrate options)';
+
+    public function __construct()
+    {
+        parent::__construct();
+
+        // Allow this command to ignore validation errors for unknown options
+        $this->ignoreValidationErrors();
+    }
 
     public function handle(): int
     {
@@ -50,35 +58,81 @@ class DbMigrateCommand extends Command
         //
         // Delegate to Migrate Command
         // -------------------------------------------------------------------------------
+        //
+        // This approach:
+        // ✅ Works in all contexts (CLI, testing, programmatic calls)
+        // ✅ Captures all unknown options by parsing the input string
+        // ✅ Uses Laravel's $this->call() method
+        // ✅ Doesn't rely on global $argv
+        // ✅ Much simpler than reflection or raw Process execution
 
-        // Get all arguments and options from the input, excluding the command name itself
-        $arguments = $this->input->getArguments();
-        $options = $this->input->getOptions();
+        // Build the migrate command arguments by reconstructing from input
+        $args = [];
 
-        // Build the parameters array for the migrate command
-        $parameters = [];
-
-        // Add all arguments (excluding the command name)
-        foreach ($arguments as $key => $value) {
-            if ($key !== 'command') {
-                $parameters[$key] = $value;
+        // Add arguments
+        foreach ($this->input->getArguments() as $key => $value) {
+            if ($key !== 'command' && $value !== null) {
+                if (is_array($value)) {
+                    $args = array_merge($args, $value);
+                } else {
+                    $args[] = $value;
+                }
             }
         }
 
-        // Add all options, filtering out default/empty values and custom options
-        foreach ($options as $key => $value) {
-            // Skip our custom options that shouldn't be passed to migrate
-            if ($key === 'migrate-help') {
+        // For options, we'll parse them from the input string to catch unknown ones
+        $inputString = (string) $this->input;
+
+        // Extract all options from the input string using regex
+        preg_match_all('/--([a-zA-Z0-9-]+)(?:=([^\s]+))?/', $inputString, $matches);
+
+        $parameters = [];
+        $isDebugMode = false;
+
+        // Detect debug flag using our regex parsing instead of $this->option('debug')
+        //
+        // Why we don't use $this->option('debug'):
+        // Laravel's option parsing can be order-dependent and inconsistent when combined
+        // with ignoreValidationErrors(). If --debug appears after an unknown option,
+        // Symfony may fail to parse it properly. Our regex-based detection is more
+        // straight-forward and works regardless of option position in the command line.
+        for ($i = 0; $i < count($matches[1]); $i++) {
+            if ($matches[1][$i] === 'debug') {
+                $isDebugMode = true;
+                break;
+            }
+        }
+
+        // Add arguments
+        foreach ($args as $arg) {
+            $parameters[] = $arg;
+        }
+
+        // Add options (excluding our custom ones)
+        for ($i = 0; $i < count($matches[1]); $i++) {
+            $optionName = $matches[1][$i];
+            $optionValue = $matches[2][$i] ?? null;
+
+            // Skip our custom options
+            if ($optionName === 'migrate-help' || $optionName === 'debug') {
                 continue;
             }
 
-            // Skip options that have their default values
-            if ($value !== false && $value !== null && $value !== [] && $value !== '') {
-                $parameters["--{$key}"] = $value;
+            if ($optionValue !== null && $optionValue !== '') {
+                $parameters["--{$optionName}"] = $optionValue;
+            } else {
+                $parameters["--{$optionName}"] = true;
             }
         }
 
-        // Call the original migrate command with all passed arguments and options
+        // Show debug information if requested (using our regex detection)
+        if ($isDebugMode && ! empty($parameters)) {
+            $this->line('🐛 Debug: Passing the following parameters to the `migrate` command:');
+
+            // phpcs:ignore
+            dump($parameters);
+        }
+
         return $this->call('migrate', $parameters);
     }
 }
