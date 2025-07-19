@@ -202,7 +202,7 @@ describe('OmakaseCommand', function (): void {
                 // Verify files exist in nested directories
                 $workflowFiles = File::files("{$tempDir}/.github/workflows");
                 expect(count($workflowFiles))->toBeGreaterThan(0)
-                    ->and(count($workflowFiles))->toBe(5); // Adjust if more ruleset files are added
+                    ->and(count($workflowFiles))->toBe(5); // Adjust if more workflow files are added
 
                 // Verify ruleset files
                 $rulesetFiles = File::files("{$tempDir}/.github/rulesets");
