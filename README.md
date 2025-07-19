@@ -55,7 +55,7 @@ php artisan laravel:omakase --files --force
 
 ### Database Migration Alias
 
-I never really got why the `migrate` command is outside the `db:*` namespace. Maybe it's just muscle memory from my Rails days but I always find myself trying to run `db:migrate` instead of just `migrate`. So this package also provides an alias for Laravel's migrate command:
+Maybe it's just muscle memory from my Rails days but I very frequently find myself trying to run `db:migrate` and then staring blankly at the screen when I get that `Command "db:migrate" is not defined.` error. It just makes sense to me that the `migrate` command should be in the `db:*` namespace. This package adds that `db:migrate` command, which conveniently simply forwards everything to the standard Laravel `migrate` Laravel:
 
 ```bash
 # Run database migrations (equivalent to 'php artisan migrate')
@@ -63,12 +63,7 @@ php artisan db:migrate
 
 # Pass any migrate options (e.g., --force, --seed, --step, etc.)
 php artisan db:migrate --force --seed
-
-# View migrate command help
-php artisan db:migrate --migrate-help
 ```
-
-This `db:migrate` command is a drop-in replacement for Laravel's built-in `migrate` command, accepting all the same arguments and options. The `--migrate-help` flag shows the full help documentation for the underlying `migrate` command.
 
 ## What Gets Installed
 
@@ -136,13 +131,6 @@ The package copies the following configuration files to your project:
 | `--npm`      | Install only NPM packages                                 |
 | `--files`    | Copy only configuration files                             |
 | `--force`    | Override existing files when copying (use with `--files`) |
-
-### db:migrate Command
-
-| Option           | Description                                                |
-| ---------------- | ---------------------------------------------------------- |
-| `--migrate-help` | Show help documentation for the underlying migrate command |
-| `*`              | Accepts all standard Laravel migrate command options       |
 
 ## Post-Installation
 
