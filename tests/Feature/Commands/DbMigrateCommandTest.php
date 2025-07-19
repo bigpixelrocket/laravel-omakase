@@ -3,76 +3,136 @@
 declare(strict_types=1);
 
 use Bigpixelrocket\LaravelOmakase\Commands\DbMigrateCommand;
+use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\Process;
 
-it('can be instantiated', function (): void {
-    $command = new DbMigrateCommand;
+use function Pest\Laravel\artisan;
 
-    expect($command)->toBeInstanceOf(DbMigrateCommand::class);
-});
+//
+// DbMigrateCommand Test Suite
+// -------------------------------------------------------------------------------
+//
+// This file verifies that the `db:migrate` alias command behaves exactly as
+// intended.  Tests are grouped by concern: interface, registration, execution
+// and help-forwarding logic.
+//
 
-it('has the correct signature', function (): void {
-    $command = new DbMigrateCommand;
+//
+// Helpers
+// -------------------------------------------------------------------------------
+//
+// Utility functions shared across this test suite.
+//
 
-    expect($command->getName())->toBe('db:migrate');
-});
+/**
+ * Convert the command of a PendingProcess (string|array) to a readable string.
+ */
+function commandToString(PendingProcess $process): string
+{
+    return is_array($process->command)
+        ? implode(' ', $process->command)
+        : $process->command;
+}
 
-it('has the correct description', function (): void {
-    $command = new DbMigrateCommand;
+//
+// Test Groups
+// -------------------------------------------------------------------------------
+//
+// The following blocks group related tests using Pest's `describe()` helper so
+// that the output collapses logically when running the suite.
+//
 
-    expect($command->getDescription())->toBe('Alias for the migrate command - Run the database migrations (use --migrate-help to see migrate options)');
-});
+describe('DbMigrateCommand', function (): void {
+    //
+    // Command Interface
+    //
+    // Ensures the alias command exposes the correct name, description and
+    // exactly one custom option: `--migrate-help`.
+    //
 
-it('calls the migrate command when executed', function (): void {
-    // Test the basic functionality without options since dynamic forwarding
-    // means we can't pass unregistered options in tests
-    $this->artisan('db:migrate')
-        ->assertExitCode(0);
-});
+    describe('command interface', function (): void {
+        it('is instantiated with correct signature, description and custom option', function (): void {
+            $command = new DbMigrateCommand;
 
-it('is registered as a console command', function (): void {
-    $commands = $this->app->make(\Illuminate\Contracts\Console\Kernel::class)->all();
+            $definition = $command->getDefinition();
+            $options = $definition->getOptions();
 
-    expect($commands)->toHaveKey('db:migrate');
-});
+            // Default options that every Laravel command possesses
+            $defaultOptions = ['help', 'quiet', 'verbose', 'version', 'ansi', 'no-ansi', 'no-interaction', 'env'];
 
-it('has exactly one parameter called --migrate-help', function (): void {
-    $command = new DbMigrateCommand;
+            // Filter to only custom options
+            $customOptions = array_filter($options, static fn ($key) => ! in_array($key, $defaultOptions), ARRAY_FILTER_USE_KEY);
 
-    // Get the command definition to inspect options
-    $definition = $command->getDefinition();
-    $options = $definition->getOptions();
+            expect($command)->toBeInstanceOf(DbMigrateCommand::class)
+                ->and($command->getName())->toBe('db:migrate')
+                ->and($command->getDescription())->toBe('Alias for the migrate command - Run the database migrations (use --migrate-help to see migrate options)')
+                ->and($customOptions)->toHaveCount(1)
+                ->and($customOptions)->toHaveKey('migrate-help')
+                ->and($definition->getOption('migrate-help')->getDefault())->toBeFalse();
+        });
+    });
 
-    // Filter out the default Laravel command options to get only the custom ones
-    $defaultOptions = ['help', 'quiet', 'verbose', 'version', 'ansi', 'no-ansi', 'no-interaction', 'env'];
-    $customOptions = array_filter($options, function ($key) use ($defaultOptions) {
-        return ! in_array($key, $defaultOptions);
-    }, ARRAY_FILTER_USE_KEY);
+    //
+    // Registration
+    //
+    // Confirms the command is registered with Laravel's console kernel.
+    //
 
-    // Should have exactly one custom option
-    expect($customOptions)->toHaveCount(1);
+    it('is registered in the console kernel', function (): void {
+        $commands = app()->make(\Illuminate\Contracts\Console\Kernel::class)->all();
 
-    // That option should be 'migrate-help'
-    expect($customOptions)->toHaveKey('migrate-help');
-});
+        expect($commands)->toHaveKey('db:migrate');
+    });
 
-it('forwards help requests to the migrate command', function (): void {
-    // Mock the Process facade to verify the correct command is called
-    Process::fake([
-        '*' => Process::result(
-            output: 'Migration help output',
-            exitCode: 0
-        ),
-    ]);
+    //
+    // Execution (default path)
+    //
+    // Verifies that running the alias with no flags delegates to the underlying
+    // `migrate` command and exits successfully.
+    //
 
-    // Execute the command with the migrate-help option
-    $this->artisan('db:migrate', ['--migrate-help' => true])
-        ->assertExitCode(0);
+    it('executes successfully and delegates to migrate with default parameters', function (): void {
+        artisan('db:migrate')->assertSuccessful();
+    });
 
-    // Verify that the Process facade was called with the correct command
-    Process::assertRan(function ($process): bool {
-        $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+    //
+    // Help Forwarding
+    //
+    // Covers the branch where users request help for the underlying command via
+    // `--migrate-help`.  Both success and failure paths are asserted.
+    //
 
-        return str_contains($command, 'php artisan migrate --help');
+    describe('help forwarding', function (): void {
+        beforeEach(function (): void {
+            Process::fake();
+        });
+
+        it('forwards --migrate-help to the underlying migrate command', function (): void {
+            // Fake successful output for the help command
+            Process::fake([
+                '*' => Process::result(
+                    output: 'Migration help output',
+                    exitCode: 0,
+                ),
+            ]);
+
+            artisan('db:migrate', ['--migrate-help' => true])->assertExitCode(0);
+
+            Process::assertRan(function (PendingProcess $process): bool {
+                return str_contains(commandToString($process), 'php artisan migrate --help');
+            });
+        });
+
+        it('returns the exit code from the underlying process on failure', function (): void {
+            // Fake a failing process
+            Process::fake([
+                '*' => Process::result(
+                    errorOutput: 'Something went wrong',
+                    exitCode: 1,
+                ),
+            ]);
+
+            artisan('db:migrate', ['--migrate-help' => true])->assertExitCode(1);
+        });
     });
 });
