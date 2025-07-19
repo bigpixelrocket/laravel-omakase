@@ -84,6 +84,7 @@ class OmakaseCommand extends Command
                         ],
                     ],
                     'pestphp/pest',
+                    'roave/security-advisories',
                 ],
             ];
 

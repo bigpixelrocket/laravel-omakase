@@ -69,6 +69,7 @@ php artisan laravel:omakase --files --force
 - `larastan/larastan` - PHPStan for Laravel (automatically runs static analysis after installation)
 - `laravel/pint` - Code style fixer (automatically fixes code style after installation)
 - `pestphp/pest` - Testing framework
+- `roave/security-advisories` - Security vulnerability database to prevent installation of packages with known security issues
 
 ### NPM Packages
 
