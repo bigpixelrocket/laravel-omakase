@@ -25,15 +25,8 @@ use function Pest\Laravel\artisan;
 // Helpers
 // -------------------------------------------------------------------------------
 //
-// Utility helpers reused across this suite.
+// Utility helpers shared across test suites are in tests/Pest.php
 //
-/**
- * Convert PendingProcess command (string|array) to a single string.
- */
-function commandToString(PendingProcess $process): string
-{
-    return is_array($process->command) ? implode(' ', $process->command) : $process->command;
-}
 
 describe('OmakaseCommand', function (): void {
     //

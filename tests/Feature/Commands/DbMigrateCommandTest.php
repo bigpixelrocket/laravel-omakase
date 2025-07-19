@@ -21,18 +21,8 @@ use function Pest\Laravel\artisan;
 // Helpers
 // -------------------------------------------------------------------------------
 //
-// Utility functions shared across this test suite.
+// Utility functions shared across this test suite are in tests/Pest.php
 //
-
-/**
- * Convert the command of a PendingProcess (string|array) to a readable string.
- */
-function commandToString(PendingProcess $process): string
-{
-    return is_array($process->command)
-        ? implode(' ', $process->command)
-        : $process->command;
-}
 
 //
 // Test Groups
@@ -118,9 +108,7 @@ describe('DbMigrateCommand', function (): void {
 
             artisan('db:migrate', ['--migrate-help' => true])->assertExitCode(0);
 
-            Process::assertRan(function (PendingProcess $process): bool {
-                return str_contains(commandToString($process), 'php artisan migrate --help');
-            });
+            Process::assertRan(fn (PendingProcess $process): bool => str_contains(commandToString($process), 'php artisan migrate --help'));
         });
 
         it('returns the exit code from the underlying process on failure', function (): void {

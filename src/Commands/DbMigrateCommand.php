@@ -24,7 +24,7 @@ class DbMigrateCommand extends Command
             try {
                 // TTY mode will directly output to the terminal with proper formatting
                 $result = Process::tty()->run(['php', 'artisan', 'migrate', '--help']);
-            } catch (\Throwable $e) {
+            } catch (\Throwable) {
                 // TTY not supported (like in test environments), fallback to regular process
                 $result = Process::run(['php', 'artisan', 'migrate', '--help']);
 
@@ -36,7 +36,13 @@ class DbMigrateCommand extends Command
                 }
             }
 
-            return $result->exitCode() ?? 1;
+            if ($result->failed()) {
+                $this->output->write($result->errorOutput());
+
+                return 1;
+            }
+
+            return 0;
         }
 
         // Get all arguments and options from the input, excluding the command name itself
@@ -53,8 +59,13 @@ class DbMigrateCommand extends Command
             }
         }
 
-        // Add all options, filtering out default/empty values
+        // Add all options, filtering out default/empty values and custom options
         foreach ($options as $key => $value) {
+            // Skip our custom options that shouldn't be passed to migrate
+            if ($key === 'migrate-help') {
+                continue;
+            }
+
             // Skip options that have their default values
             if ($value !== false && $value !== null && $value !== [] && $value !== '') {
                 $parameters["--{$key}"] = $value;
