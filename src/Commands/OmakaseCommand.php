@@ -46,6 +46,12 @@ class OmakaseCommand extends Command
             $this->line('╚═══════════════════════════════════════════╝');
             $this->newLine();
 
+            // Update existing packages first
+            $this->warn('composer update');
+            if (! $this->exec(['composer', 'update'])) {
+                return self::FAILURE;
+            }
+
             $composerPackages = [
                 'require' => [
                     'livewire/livewire' => [
@@ -84,6 +90,7 @@ class OmakaseCommand extends Command
                         ],
                     ],
                     'pestphp/pest',
+                    'roave/security-advisories:dev-latest',
                 ],
             ];
 
