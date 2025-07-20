@@ -42,8 +42,19 @@ class DbMigrateCommand extends Command
             '--step' => $this->option('step'),
             '--graceful' => $this->option('graceful'),
             '--isolated' => $this->option('isolated'),
-        ], fn ($value) => $value !== false && $value !== null && $value !== []);
+        ], fn ($value) => $this->isValidOption($value));
 
         return $this->call('migrate', $options);
+    }
+
+    /**
+     * Determine if the given value is a valid option.
+     *
+     * @param mixed $value
+     * @return bool
+     */
+    private function isValidOption($value): bool
+    {
+        return !in_array($value, [false, null, []], true);
     }
 }
