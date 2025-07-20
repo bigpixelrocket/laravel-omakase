@@ -24,5 +24,19 @@ class OmakaseServiceProvider extends ServiceProvider
     public function register(): void
     {
         //
+        // Package Configuration Registration
+        // -------------------------------------------------------------------------------
+
+        // Register internal package configurations
+        // These are not meant to be published/customized by users
+        $this->mergeConfigFrom(
+            __DIR__.'/../config/composer-packages.php',
+            'laravel-omakase.composer-packages'
+        );
+
+        $this->mergeConfigFrom(
+            __DIR__.'/../config/npm-packages.php',
+            'laravel-omakase.npm-packages'
+        );
     }
 }

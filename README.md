@@ -35,6 +35,8 @@ Run the omakase command to install all packages and copy all configuration files
 php artisan laravel:omakase
 ```
 
+The command will automatically configure your `composer.json` file with package-specific settings (like scripts and repositories) when installing certain packages. You'll be prompted to confirm these changes before they're applied.
+
 ### Selective Installation
 
 You can choose to install only specific parts:
@@ -51,7 +53,20 @@ php artisan laravel:omakase --files
 
 # Force overwrite existing files when copying
 php artisan laravel:omakase --files --force
+
+# Skip composer.json modifications entirely
+php artisan laravel:omakase --skip-composer-json
 ```
+
+### Composer.json Configuration
+
+When installing Composer packages, the command automatically adds package-specific configurations to your `composer.json` file, such as:
+
+- **Scripts**: Adds useful scripts like IDE helper generation
+- **Repositories**: Adds any required package repositories
+- **Configuration**: Updates config and extra sections as needed
+
+You'll be prompted to confirm each change before it's applied. If you prefer to skip these modifications entirely, use the `--skip-composer-json` flag.
 
 ### Database Migration Alias
 
@@ -125,12 +140,13 @@ The package copies the following configuration files to your project:
 
 ### laravel:omakase Command
 
-| Option       | Description                                               |
-| ------------ | --------------------------------------------------------- |
-| `--composer` | Install only Composer packages                            |
-| `--npm`      | Install only NPM packages                                 |
-| `--files`    | Copy only configuration files                             |
-| `--force`    | Override existing files when copying (use with `--files`) |
+| Option                 | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `--composer`           | Install only Composer packages                            |
+| `--npm`                | Install only NPM packages                                 |
+| `--files`              | Copy only configuration files                             |
+| `--force`              | Override existing files when copying (use with `--files`) |
+| `--skip-composer-json` | Skip automatic composer.json configuration updates        |
 
 ## Post-Installation
 
