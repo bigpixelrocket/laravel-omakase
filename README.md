@@ -55,7 +55,7 @@ php artisan laravel:omakase --files --force
 
 ### Database Migration Alias
 
-Maybe it's just muscle memory from my Rails days but I very frequently find myself trying to run `db:migrate` and then staring blankly at the screen when I get that `Command "db:migrate" is not defined.` error. It just makes sense to me that the `migrate` command should be in the `db:*` namespace. This package adds that `db:migrate` command, which conveniently simply forwards everything to the standard Laravel `migrate` Laravel:
+Maybe it's just muscle memory from my Rails days but I very frequently find myself trying to run `db:migrate` and then staring blankly at the screen when I get that `Command "db:migrate" is not defined.` error. It just makes sense to me that the `migrate` command should be in the `db:*` namespace. This package adds that `db:migrate` command, which conveniently simply forwards everything to the standard Laravel `migrate` command:
 
 ```bash
 # Run database migrations (equivalent to 'php artisan migrate')
