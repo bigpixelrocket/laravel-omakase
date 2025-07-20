@@ -46,10 +46,13 @@ class OmakaseCommand extends Command
             $this->line('╚═══════════════════════════════════════════╝');
             $this->newLine();
 
-            // Update existing packages first
-            $this->warn('composer update');
-            if (! $this->exec(['composer', 'update'])) {
-                return self::FAILURE;
+            // Ask if user wants to update existing packages first
+            if ($this->confirm('Do you want to update existing Composer packages first?', false)) {
+                $this->warn('composer update');
+                if (! $this->exec(['composer', 'update'])) {
+                    return self::FAILURE;
+                }
+                $this->newLine();
             }
 
             $composerPackages = [
@@ -105,6 +108,15 @@ class OmakaseCommand extends Command
             $this->line('║         Installing NPM Packages           ║');
             $this->line('╚═══════════════════════════════════════════╝');
             $this->newLine();
+
+            // Ask if user wants to update existing packages first
+            if ($this->confirm('Do you want to update existing NPM packages first?', false)) {
+                $this->warn('npm update');
+                if (! $this->exec(['npm', 'update'])) {
+                    return self::FAILURE;
+                }
+                $this->newLine();
+            }
 
             $npmPackages = [
                 'dependencies' => [
