@@ -8,15 +8,32 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 
+//
+// Omakase Command - Laravel Package Installation & Configuration
+// -------------------------------------------------------------------------------
+//
+// This command provides an opinionated selection of packages and configurations
+// for Laravel projects. It handles Composer packages, NPM packages, and copies
+// predefined configuration files.
+
 class OmakaseCommand extends Command
 {
+    //
+    // Command Definition
+    // -------------------------------------------------------------------------------
+
     protected $signature = 'laravel:omakase
         {--files : Only copy files}
         {--composer : Install only composer packages}
         {--npm : Install only npm packages}
+        {--skip-composer-json : Skip modifying composer.json}
         {--force : Override existing files when copying}';
 
     protected $description = 'An opinionated menu for your next Laravel project';
+
+    //
+    // Main Entry Point
+    // -------------------------------------------------------------------------------
 
     public function handle(): int
     {
@@ -26,6 +43,9 @@ class OmakaseCommand extends Command
 
         // If no specific options are provided, run everything
         $runAll = ! $runFiles && ! $runComposer && ! $runNpm;
+
+        //
+        // File Operations
 
         if ($runAll || $runFiles) {
             $this->newLine();
@@ -38,6 +58,9 @@ class OmakaseCommand extends Command
                 return self::FAILURE;
             }
         }
+
+        //
+        // Composer Package Installation
 
         if ($runAll || $runComposer) {
             $this->newLine();
@@ -55,52 +78,22 @@ class OmakaseCommand extends Command
                 $this->newLine();
             }
 
-            $composerPackages = [
-                'require' => [
-                    'livewire/livewire' => [
-                        'commands' => [
-                            ['php', 'artisan', 'livewire:publish', '--config'],
-                        ],
-                    ],
-                    'livewire/flux',
-                    'spatie/laravel-data' => [
-                        'commands' => [
-                            ['php', 'artisan', 'vendor:publish', '--provider=Spatie\LaravelData\LaravelDataServiceProvider', '--tag=data-config'],
-                        ],
-                    ],
-                ],
-                'require-dev' => [
-                    'barryvdh/laravel-ide-helper' => [
-                        'commands' => [
-                            ['php', 'artisan', 'ide-helper:generate'],
-                            ['php', 'artisan', 'ide-helper:meta'],
-                            ['php', 'artisan', 'ide-helper:models', '--nowrite'],
-                        ],
-                    ],
-                    'rector/rector' => [
-                        'optional_commands' => [
-                            ['vendor/bin/rector'],
-                        ],
-                    ],
-                    'laravel/pint' => [
-                        'optional_commands' => [
-                            ['vendor/bin/pint', '--repair'],
-                        ],
-                    ],
-                    'larastan/larastan' => [
-                        'optional_commands' => [
-                            ['vendor/bin/phpstan', 'analyse'],
-                        ],
-                    ],
-                    'pestphp/pest',
-                    'roave/security-advisories:dev-latest',
-                ],
-            ];
+            $composerPackages = config('laravel-omakase.composer-packages');
 
+            if (! is_array($composerPackages)) {
+                $this->error('Invalid composer packages configuration');
+
+                return self::FAILURE;
+            }
+
+            /** @var array<string, array<string|array<string, array<array<string>>|array<string, mixed>>>> $composerPackages */
             if (! $this->installPackages($composerPackages, ['composer', 'require'], 'require-dev', '--dev')) {
                 return self::FAILURE;
             }
         }
+
+        //
+        // NPM Package Installation
 
         if ($runAll || $runNpm) {
             $this->newLine();
@@ -118,18 +111,15 @@ class OmakaseCommand extends Command
                 $this->newLine();
             }
 
-            $npmPackages = [
-                'dependencies' => [
-                    'tailwindcss',
-                    '@tailwindcss/vite',
-                ],
-                'devDependencies' => [
-                    'prettier',
-                    'prettier-plugin-blade',
-                    'prettier-plugin-tailwindcss',
-                ],
-            ];
+            $npmPackages = config('laravel-omakase.npm-packages');
 
+            if (! is_array($npmPackages)) {
+                $this->error('Invalid npm packages configuration');
+
+                return self::FAILURE;
+            }
+
+            /** @var array<string, array<string|array<string, array<array<string>>|array<string, mixed>>>> $npmPackages */
             if (! $this->installPackages($npmPackages, ['npm', 'install'], 'devDependencies', '--save-dev')) {
                 return self::FAILURE;
             }
@@ -138,8 +128,14 @@ class OmakaseCommand extends Command
         return self::SUCCESS;
     }
 
+    //
+    // Package Installation
+    // -------------------------------------------------------------------------------
+
     /**
-     * @param  array<string, array<string|array<string, array<array<string>>>>>  $packages
+     * Install packages and handle their configurations
+     *
+     * @param  array<string, array<string|array<string, array<array<string>>|array<string, mixed>>>>  $packages
      * @param  array<string>  $command
      */
     protected function installPackages(array $packages, array $command, string $devFlag = '', string $devFlagValue = '--dev'): bool
@@ -148,6 +144,9 @@ class OmakaseCommand extends Command
             $commands = [];
             $optionalCommands = [];
             $packageNames = [];
+
+            //
+            // Package Processing
 
             /** @var string|array<string, array<array<string>>> $v */
             foreach ($typePackages as $k => $v) {
@@ -164,6 +163,9 @@ class OmakaseCommand extends Command
                 }
             }
 
+            //
+            // Command Execution
+
             $baseCommand = $command;
             if ($type === $devFlag) {
                 $baseCommand[] = $devFlagValue;
@@ -174,6 +176,32 @@ class OmakaseCommand extends Command
                 return false;
             }
 
+            //
+            // Composer.json Updates
+
+            // Handle composer.json updates for specific packages
+            /** @var string|array<string, array<array<string>>|array<string, mixed>> $v */
+            foreach ($typePackages as $k => $v) {
+                if (is_array($v) && isset($v['composer']) && ! $this->option('skip-composer-json')) {
+                    $packageName = (string) $k;
+                    $composerConfig = $v['composer'];
+
+                    // Generate dynamic confirmation message based on what sections are being updated
+                    $sections = array_keys($composerConfig);
+                    $sectionNames = implode(', ', $sections);
+                    $confirmMessage = "Add {$packageName} configuration to composer.json ({$sectionNames})?";
+
+                    if ($this->confirm($confirmMessage, true)) {
+                        if (! $this->updateComposerJson($composerConfig, $packageName)) {
+                            $this->warn("Failed to update composer.json for {$packageName}, continuing...");
+                        }
+                    }
+                }
+            }
+
+            //
+            // Optional Commands
+
             // Execute optional commands that don't fail the installation
             if (! empty($optionalCommands)) {
                 $this->execOptionalCommands($optionalCommands);
@@ -183,7 +211,13 @@ class OmakaseCommand extends Command
         return true;
     }
 
+    //
+    // External Process Execution
+    // -------------------------------------------------------------------------------
+
     /**
+     * Execute multiple commands in sequence
+     *
      * @param  array<array<string>>  $commands
      */
     protected function execCommands(array $commands): bool
@@ -199,6 +233,8 @@ class OmakaseCommand extends Command
     }
 
     /**
+     * Execute optional commands that don't fail the installation
+     *
      * @param  array<array<string>>  $commands
      */
     protected function execOptionalCommands(array $commands): void
@@ -212,6 +248,8 @@ class OmakaseCommand extends Command
     }
 
     /**
+     * Execute a single command using Laravel's Process facade
+     *
      * @param  array<string>  $command
      */
     protected function exec(array $command, bool $optional = false): bool
@@ -245,6 +283,13 @@ class OmakaseCommand extends Command
         return true;
     }
 
+    //
+    // File Operations
+    // -------------------------------------------------------------------------------
+
+    /**
+     * Copy all files from the dist directory to the project
+     */
     protected function copyFiles(): bool
     {
         $basePath = __DIR__.'/../../dist/';
@@ -277,6 +322,8 @@ class OmakaseCommand extends Command
     }
 
     /**
+     * Get all files from the dist directory recursively
+     *
      * @return array<int, string>
      */
     protected function getDistFiles(string $basePath): array
@@ -303,6 +350,9 @@ class OmakaseCommand extends Command
         return $files;
     }
 
+    /**
+     * Copy a single file to its destination
+     */
     protected function copyFile(string $filePathname, string $destPathname, string $destDirname): bool
     {
         if (! is_dir($destDirname)) {
@@ -321,5 +371,273 @@ class OmakaseCommand extends Command
         }
 
         return true;
+    }
+
+    //
+    // Composer JSON Management
+    // -------------------------------------------------------------------------------
+
+    /**
+     * Update composer.json with package-specific configuration
+     *
+     * @param  array<mixed>  $composerConfig
+     */
+    protected function updateComposerJson(array $composerConfig, string $packageName = ''): bool
+    {
+        $composerPath = base_path('composer.json');
+
+        if (! File::exists($composerPath)) {
+            $this->error('composer.json not found');
+
+            return false;
+        }
+
+        try {
+            // Read and parse composer.json
+            $composerContent = File::get($composerPath);
+            $composerData = json_decode($composerContent, true, 512, JSON_THROW_ON_ERROR);
+
+            if (! is_array($composerData)) {
+                $this->error('Invalid composer.json structure');
+
+                return false;
+            }
+
+            $sectionsUpdated = [];
+
+            // Process each section in the composer configuration
+            foreach ($composerConfig as $section => $sectionData) {
+                if (! is_array($sectionData)) {
+                    continue;
+                }
+
+                $updated = $this->updateComposerSection($composerData, $section, $sectionData, $packageName);
+                if ($updated) {
+                    $sectionsUpdated[] = $section;
+                }
+            }
+
+            if (empty($sectionsUpdated)) {
+                $this->comment('No changes needed for composer.json');
+
+                return true;
+            }
+
+            // Write back to composer.json with proper formatting
+            $formattedJson = json_encode($composerData, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+
+            if ($formattedJson === false) {
+                $this->error('Failed to encode composer.json data');
+
+                return false;
+            }
+
+            File::put($composerPath, $formattedJson."\n");
+
+            $sectionList = implode(', ', $sectionsUpdated);
+            $this->info("Updated composer.json sections: {$sectionList}");
+
+            return true;
+
+        } catch (\JsonException $e) {
+            $this->error('Invalid JSON in composer.json: '.$e->getMessage());
+
+            return false;
+        } catch (\Exception $e) {
+            $this->error('Failed to update composer.json: '.$e->getMessage());
+
+            return false;
+        }
+    }
+
+    //
+    // Section-Specific Updates
+
+    /**
+     * Update a specific section of composer.json
+     *
+     * @param  array<mixed>  $composerData
+     * @param  array<mixed>  $sectionData
+     */
+    protected function updateComposerSection(array &$composerData, string $section, array $sectionData, string $packageName): bool
+    {
+        switch ($section) {
+            case 'scripts':
+                return $this->updateComposerScripts($composerData, $sectionData, $packageName);
+            case 'repositories':
+                return $this->updateComposerRepositories($composerData, $sectionData, $packageName);
+            case 'config':
+            case 'extra':
+                return $this->updateComposerObjectSection($composerData, $section, $sectionData, $packageName);
+            default:
+                $this->warn("Unknown composer.json section: {$section}");
+
+                return false;
+        }
+    }
+
+    /**
+     * Update composer scripts section
+     *
+     * @param  array<mixed>  $composerData
+     * @param  array<mixed>  $scriptsData
+     */
+    protected function updateComposerScripts(array &$composerData, array $scriptsData, string $packageName): bool
+    {
+        // Initialize scripts section if it doesn't exist
+        if (! isset($composerData['scripts']) || ! is_array($composerData['scripts'])) {
+            $composerData['scripts'] = [];
+        }
+
+        $updated = false;
+
+        foreach ($scriptsData as $scriptName => $commands) {
+            if (! is_array($commands)) {
+                continue;
+            }
+
+            if (! isset($composerData['scripts'][$scriptName])) {
+                // Script doesn't exist, create it
+                $composerData['scripts'][$scriptName] = $commands;
+                $this->info("Added {$scriptName} scripts to composer.json");
+                $updated = true;
+            } else {
+                // Script exists, merge commands
+                $existingCommands = $composerData['scripts'][$scriptName];
+
+                // Convert string to array if needed
+                if (is_string($existingCommands)) {
+                    $existingCommands = [$existingCommands];
+                }
+
+                if (! is_array($existingCommands)) {
+                    $this->error("Invalid {$scriptName} structure in composer.json");
+
+                    continue;
+                }
+
+                $commandsAdded = [];
+                foreach ($commands as $command) {
+                    if (is_string($command) && ! $this->commandExists($existingCommands, $command)) {
+                        $existingCommands[] = $command;
+                        $commandsAdded[] = $command;
+                    }
+                }
+
+                if (! empty($commandsAdded)) {
+                    $composerData['scripts'][$scriptName] = $existingCommands;
+                    $this->info('Added '.count($commandsAdded)." new script(s) to {$scriptName}");
+                    foreach ($commandsAdded as $cmd) {
+                        $this->line("  + {$cmd}");
+                    }
+                    $updated = true;
+                } else {
+                    $this->comment("All required scripts already exist in {$scriptName}");
+                }
+            }
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Update composer repositories section
+     *
+     * @param  array<mixed>  $composerData
+     * @param  array<mixed>  $repositoriesData
+     */
+    protected function updateComposerRepositories(array &$composerData, array $repositoriesData, string $packageName): bool
+    {
+        // Initialize repositories section if it doesn't exist
+        if (! isset($composerData['repositories']) || ! is_array($composerData['repositories'])) {
+            $composerData['repositories'] = [];
+        }
+
+        $updated = false;
+
+        foreach ($repositoriesData as $repository) {
+            if (! is_array($repository) || ! isset($repository['url'])) {
+                continue;
+            }
+
+            $exists = array_any($composerData['repositories'], fn ($existingRepo) => is_array($existingRepo) && isset($existingRepo['url']) && $existingRepo['url'] === $repository['url']);
+
+            if (! $exists) {
+                $composerData['repositories'][] = $repository;
+                $url = is_string($repository['url']) ? $repository['url'] : 'unknown';
+                $this->info("Added repository: {$url}");
+                $updated = true;
+            } else {
+                $url = is_string($repository['url']) ? $repository['url'] : 'unknown';
+                $this->comment("Repository already exists: {$url}");
+            }
+        }
+
+        return $updated;
+    }
+
+    /**
+     * Update composer object sections (config, extra, etc.)
+     *
+     * @param  array<mixed>  $composerData
+     * @param  array<mixed>  $sectionData
+     */
+    protected function updateComposerObjectSection(array &$composerData, string $section, array $sectionData, string $packageName): bool
+    {
+        // Initialize section if it doesn't exist
+        if (! isset($composerData[$section]) || ! is_array($composerData[$section])) {
+            $composerData[$section] = [];
+        }
+
+        // Deep replace the section data (replace values instead of merging arrays)
+        $originalData = $composerData[$section];
+        $composerData[$section] = array_replace_recursive($composerData[$section], $sectionData);
+
+        // Check if anything actually changed
+        $updated = $originalData !== $composerData[$section];
+
+        if ($updated) {
+            $this->info("Updated {$section} section in composer.json");
+        } else {
+            $this->comment("No changes needed for {$section} section");
+        }
+
+        return $updated;
+    }
+
+    //
+    // Utility Methods
+
+    /**
+     * Normalize command string for comparison
+     */
+    protected function normalizeCommand(string $command): string
+    {
+        $normalized = preg_replace('/\s+/', ' ', $command);
+
+        if ($normalized === null) {
+            $this->comment("Failed to normalize command: {$command}");
+
+            return trim($command);
+        }
+
+        return trim($normalized);
+    }
+
+    /**
+     * Check if a command already exists in the commands array
+     *
+     * @param  array<int|string, mixed>  $commands
+     */
+    protected function commandExists(array $commands, string $targetCommand): bool
+    {
+        $normalizedTarget = $this->normalizeCommand($targetCommand);
+        foreach ($commands as $command) {
+            if (is_string($command) && $this->normalizeCommand($command) === $normalizedTarget) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
