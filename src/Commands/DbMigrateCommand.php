@@ -50,11 +50,10 @@ class DbMigrateCommand extends Command
     /**
      * Determine if the given value is a valid option.
      *
-     * @param mixed $value
-     * @return bool
+     * @param  mixed  $value
      */
     private function isValidOption($value): bool
     {
-        return !in_array($value, [false, null, []], true);
+        return ! in_array($value, [false, null, []], true);
     }
 }
