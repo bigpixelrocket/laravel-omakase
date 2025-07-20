@@ -14,6 +14,7 @@ class OmakaseCommand extends Command
         {--files : Only copy files}
         {--composer : Install only composer packages}
         {--npm : Install only npm packages}
+        {--skip-livewire : Skip installing Livewire packages}
         {--force : Override existing files when copying}';
 
     protected $description = 'An opinionated menu for your next Laravel project';
@@ -23,6 +24,7 @@ class OmakaseCommand extends Command
         $runFiles = $this->option('files');
         $runComposer = $this->option('composer');
         $runNpm = $this->option('npm');
+        $skipLivewire = $this->option('skip-livewire');
 
         // If no specific options are provided, run everything
         $runAll = ! $runFiles && ! $runComposer && ! $runNpm;
@@ -57,12 +59,6 @@ class OmakaseCommand extends Command
 
             $composerPackages = [
                 'require' => [
-                    'livewire/livewire' => [
-                        'commands' => [
-                            ['php', 'artisan', 'livewire:publish', '--config'],
-                        ],
-                    ],
-                    'livewire/flux',
                     'spatie/laravel-data' => [
                         'commands' => [
                             ['php', 'artisan', 'vendor:publish', '--provider=Spatie\LaravelData\LaravelDataServiceProvider', '--tag=data-config'],
@@ -96,6 +92,16 @@ class OmakaseCommand extends Command
                     'roave/security-advisories:dev-latest',
                 ],
             ];
+
+            // Add Livewire packages if not skipping
+            if (! $skipLivewire) {
+                $composerPackages['require']['livewire/livewire'] = [
+                    'commands' => [
+                        ['php', 'artisan', 'livewire:publish', '--config'],
+                    ],
+                ];
+                $composerPackages['require']['livewire/flux'] = null;
+            }
 
             if (! $this->installPackages($composerPackages, ['composer', 'require'], 'require-dev', '--dev')) {
                 return self::FAILURE;

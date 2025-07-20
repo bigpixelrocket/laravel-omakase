@@ -49,6 +49,12 @@ php artisan laravel:omakase --npm
 # Copy only configuration files
 php artisan laravel:omakase --files
 
+# Skip Livewire packages (useful for non-Livewire projects)
+php artisan laravel:omakase --skip-livewire
+
+# Install Composer packages but skip Livewire
+php artisan laravel:omakase --composer --skip-livewire
+
 # Force overwrite existing files when copying
 php artisan laravel:omakase --files --force
 ```
@@ -74,6 +80,8 @@ php artisan db:migrate --force --seed
 - `livewire/flux` - Modern UI component library for Livewire applications
 - `livewire/livewire` - Full-stack framework for Laravel
 - `spatie/laravel-data` - Powerful data objects for Laravel
+
+> **Note:** You can skip installing Livewire packages by using the `--skip-livewire` option. This is useful for projects that don't use Livewire or prefer alternative frontend frameworks.
 
 **Development Dependencies:**
 
@@ -125,12 +133,13 @@ The package copies the following configuration files to your project:
 
 ### laravel:omakase Command
 
-| Option       | Description                                               |
-| ------------ | --------------------------------------------------------- |
-| `--composer` | Install only Composer packages                            |
-| `--npm`      | Install only NPM packages                                 |
-| `--files`    | Copy only configuration files                             |
-| `--force`    | Override existing files when copying (use with `--files`) |
+| Option           | Description                                               |
+| ---------------- | --------------------------------------------------------- |
+| `--composer`     | Install only Composer packages                            |
+| `--npm`          | Install only NPM packages                                 |
+| `--files`        | Copy only configuration files                             |
+| `--skip-livewire`| Skip installing Livewire packages                        |
+| `--force`        | Override existing files when copying (use with `--files`) |
 
 ## Post-Installation
 

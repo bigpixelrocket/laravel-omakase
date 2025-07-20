@@ -47,10 +47,12 @@ describe('OmakaseCommand', function (): void {
             expect($definition->hasOption('composer'))->toBeTrue()
                 ->and($definition->hasOption('npm'))->toBeTrue()
                 ->and($definition->hasOption('files'))->toBeTrue()
+                ->and($definition->hasOption('skip-livewire'))->toBeTrue()
                 ->and($definition->hasOption('force'))->toBeTrue()
                 ->and($definition->getOption('composer')->getDefault())->toBeFalse()
                 ->and($definition->getOption('npm')->getDefault())->toBeFalse()
                 ->and($definition->getOption('files')->getDefault())->toBeFalse()
+                ->and($definition->getOption('skip-livewire')->getDefault())->toBeFalse()
                 ->and($definition->getOption('force')->getDefault())->toBeFalse();
         });
     });
@@ -596,6 +598,174 @@ describe('OmakaseCommand', function (): void {
             if (! $wasDefinedBefore && defined('PHPUNIT_COMPOSER_INSTALL')) {
                 // Constant remains defined, which is expected in PHP
             }
+        });
+    });
+
+    //
+    // Skip Livewire Option
+    // -------------------------------------------------------------------------------
+    //
+    // Tests the --skip-livewire option to ensure livewire packages are properly
+    // excluded when the flag is used.
+    //
+    describe('skip livewire option', function (): void {
+        beforeEach(function (): void {
+            Process::fake();
+        });
+
+        it('installs livewire packages by default', function (): void {
+            artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->assertSuccessful();
+
+            // Verify livewire packages are included in the command
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'composer require')
+                    && str_contains($command, 'livewire/livewire')
+                    && str_contains($command, 'livewire/flux');
+            });
+
+            // Verify livewire post-install command is run
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'php artisan livewire:publish --config');
+            });
+        });
+
+        it('skips livewire packages when --skip-livewire is used', function (): void {
+            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-livewire' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->assertSuccessful();
+
+            // Verify livewire packages are NOT included
+            Process::assertDidntRun(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'composer require')
+                    && (str_contains($command, 'livewire/livewire') || str_contains($command, 'livewire/flux'));
+            });
+
+            // Verify livewire post-install command is NOT run
+            Process::assertDidntRun(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'php artisan livewire:publish');
+            });
+
+            // But verify other composer packages are still installed
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'composer require')
+                    && str_contains($command, 'spatie/laravel-data');
+            });
+        });
+
+        it('skips livewire packages when running all tasks with --skip-livewire', function (): void {
+            artisan(OmakaseCommand::class, ['--skip-livewire' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
+                ->expectsOutputToContain('Installing Composer Packages')
+                ->expectsOutputToContain('Installing NPM Packages')
+                ->expectsOutputToContain('Copying files')
+                ->assertSuccessful();
+
+            // Verify livewire packages are NOT included
+            Process::assertDidntRun(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'composer require')
+                    && (str_contains($command, 'livewire/livewire') || str_contains($command, 'livewire/flux'));
+            });
+
+            // Verify other tasks still run
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'npm install');
+            });
+
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'composer require')
+                    && str_contains($command, 'spatie/laravel-data');
+            });
+        });
+
+        it('works correctly with --skip-livewire and other option combinations', function (): void {
+            // Test with --npm and --skip-livewire (should only run npm)
+            artisan(OmakaseCommand::class, ['--npm' => true, '--skip-livewire' => true])
+                ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
+                ->expectsOutputToContain('Installing NPM Packages')
+                ->doesntExpectOutputToContain('Installing Composer Packages')
+                ->assertSuccessful();
+
+            // Verify no composer commands ran at all
+            Process::assertDidntRun(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'composer require');
+            });
+
+            // Test with --files and --skip-livewire (should only copy files)
+            artisan(OmakaseCommand::class, ['--files' => true, '--skip-livewire' => true])
+                ->expectsOutputToContain('Copying files')
+                ->doesntExpectOutputToContain('Installing Composer Packages')
+                ->doesntExpectOutputToContain('Installing NPM Packages')
+                ->assertSuccessful();
+
+            // Test with --composer and --skip-livewire (should install composer packages but skip livewire)
+            Process::fake(); // Reset for clean test
+            
+            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-livewire' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->expectsOutputToContain('Installing Composer Packages')
+                ->assertSuccessful();
+
+            // Verify composer commands ran but without livewire packages
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'composer require') && str_contains($command, 'spatie/laravel-data');
+            });
+
+            Process::assertDidntRun(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'livewire/livewire') || str_contains($command, 'livewire/flux');
+            });
+        });
+
+        it('verifies specific packages are excluded when --skip-livewire is used', function (): void {
+            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-livewire' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->assertSuccessful();
+
+            // Get all ran commands
+            $ranCommands = [];
+            Process::assertRan(function (PendingProcess $process) use (&$ranCommands) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $ranCommands[] = $command;
+
+                return true;
+            });
+
+            // Convert to single string for easier checking
+            $allCommands = implode(' ', $ranCommands);
+
+            // Verify livewire packages are NOT present
+            expect($allCommands)->not->toContain('livewire/livewire')
+                ->and($allCommands)->not->toContain('livewire/flux')
+                ->and($allCommands)->not->toContain('livewire:publish');
+
+            // Verify other packages ARE present
+            expect($allCommands)->toContain('spatie/laravel-data')
+                ->and($allCommands)->toContain('barryvdh/laravel-ide-helper')
+                ->and($allCommands)->toContain('pestphp/pest');
         });
     });
 
