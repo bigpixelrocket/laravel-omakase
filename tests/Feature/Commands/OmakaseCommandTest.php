@@ -69,6 +69,8 @@ describe('OmakaseCommand', function (): void {
 
         it('installs packages and copies files by default', function (): void {
             artisan(OmakaseCommand::class)
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->expectsOutputToContain('Installing NPM Packages')
                 ->expectsOutputToContain('Copying files')
@@ -90,6 +92,7 @@ describe('OmakaseCommand', function (): void {
 
         it('only installs composer packages with the --composer option', function (): void {
             artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->doesntExpectOutputToContain('Installing NPM Packages')
                 ->doesntExpectOutputToContain('Copying files')
@@ -111,6 +114,7 @@ describe('OmakaseCommand', function (): void {
 
         it('only installs npm packages with the --npm option', function (): void {
             artisan(OmakaseCommand::class, ['--npm' => true])
+                ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->doesntExpectOutputToContain('Installing Composer Packages')
                 ->expectsOutputToContain('Installing NPM Packages')
                 ->doesntExpectOutputToContain('Copying files')
@@ -143,6 +147,7 @@ describe('OmakaseCommand', function (): void {
 
         it('handles multiple option combinations correctly', function (): void {
             artisan(OmakaseCommand::class, ['--composer' => true, '--files' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->expectsOutputToContain('Copying files')
                 ->doesntExpectOutputToContain('Installing NPM Packages')
@@ -268,6 +273,7 @@ describe('OmakaseCommand', function (): void {
             ]);
 
             artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertFailed();
 
             Process::assertRan(function (PendingProcess $process) {
@@ -300,6 +306,8 @@ describe('OmakaseCommand', function (): void {
             ]);
 
             artisan(OmakaseCommand::class)
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->assertFailed();
 
             // Verify both commands were attempted
@@ -336,6 +344,7 @@ describe('OmakaseCommand', function (): void {
             ]);
 
             artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsOutputToContain('Optional command failed but continuing installation...')
                 ->assertSuccessful();
 
@@ -419,6 +428,7 @@ describe('OmakaseCommand', function (): void {
             Process::fake();
 
             artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertSuccessful();
 
             // Verify production packages command is run
@@ -440,6 +450,7 @@ describe('OmakaseCommand', function (): void {
             Process::fake();
 
             artisan(OmakaseCommand::class, ['--npm' => true])
+                ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->assertSuccessful();
 
             // Verify npm install command is run
@@ -454,6 +465,7 @@ describe('OmakaseCommand', function (): void {
             Process::fake();
 
             artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertSuccessful();
 
             // Verify that required post-install artisan commands are run
@@ -481,6 +493,7 @@ describe('OmakaseCommand', function (): void {
             Process::fake();
 
             artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertSuccessful();
 
             // Count total commands run
@@ -525,6 +538,7 @@ describe('OmakaseCommand', function (): void {
             $_SERVER['PHP_OS_FAMILY'] = 'Windows';
 
             artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertSuccessful();
 
             // Restore original OS
@@ -546,6 +560,7 @@ describe('OmakaseCommand', function (): void {
             Process::fake();
 
             artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsOutputToContain('composer require')
                 ->assertSuccessful();
 
@@ -573,6 +588,7 @@ describe('OmakaseCommand', function (): void {
             ]);
 
             artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->doesntExpectOutputToContain('Error output that should not be shown')
                 ->assertFailed();
 
@@ -632,16 +648,27 @@ describe('OmakaseCommand', function (): void {
         it('validates all command option combinations', function (): void {
             Process::fake();
 
-            $combinations = [
-                ['--composer' => true, '--npm' => true],
-                ['--composer' => true, '--files' => true],
-                ['--npm' => true, '--files' => true],
-                ['--composer' => true, '--npm' => true, '--files' => true],
-            ];
+            // Test composer + npm
+            artisan(OmakaseCommand::class, ['--composer' => true, '--npm' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
+                ->assertSuccessful();
 
-            foreach ($combinations as $options) {
-                artisan(OmakaseCommand::class, $options)->assertSuccessful();
-            }
+            // Test composer + files
+            artisan(OmakaseCommand::class, ['--composer' => true, '--files' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->assertSuccessful();
+
+            // Test npm + files
+            artisan(OmakaseCommand::class, ['--npm' => true, '--files' => true])
+                ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
+                ->assertSuccessful();
+
+            // Test all three
+            artisan(OmakaseCommand::class, ['--composer' => true, '--npm' => true, '--files' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
+                ->assertSuccessful();
 
             // Verify appropriate commands were run
             Process::assertRan(function (PendingProcess $process) {
