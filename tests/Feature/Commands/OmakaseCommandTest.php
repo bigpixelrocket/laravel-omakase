@@ -29,7 +29,124 @@ use function Pest\Laravel\artisan;
 // Utility helpers shared across test suites are in tests/Pest.php
 //
 
+/**
+ * Set controlled test data for composer packages config
+ *
+ * @param  array<string, mixed>|null  $customConfig
+ */
+function setComposerPackagesConfig(?array $customConfig = null): void
+{
+    $defaultConfig = [
+        'require' => [
+            'livewire/livewire' => [
+                'commands' => [
+                    ['php', 'artisan', 'livewire:publish', '--config'],
+                ],
+            ],
+            'livewire/flux',
+            'spatie/laravel-data' => [
+                'commands' => [
+                    ['php', 'artisan', 'vendor:publish', '--provider=Spatie\LaravelData\LaravelDataServiceProvider', '--tag=data-config'],
+                ],
+            ],
+        ],
+        'require-dev' => [
+            'barryvdh/laravel-ide-helper' => [
+                'composer' => [
+                    'scripts' => [
+                        'post-update-cmd' => [
+                            'Illuminate\\Foundation\\ComposerScripts::postUpdate',
+                            '@php artisan ide-helper:generate',
+                            '@php artisan ide-helper:meta',
+                        ],
+                    ],
+                ],
+                'commands' => [
+                    ['php', 'artisan', 'ide-helper:generate'],
+                    ['php', 'artisan', 'ide-helper:meta'],
+                ],
+            ],
+            'rector/rector' => [
+                'optional_commands' => [
+                    ['vendor/bin/rector'],
+                ],
+            ],
+            'laravel/pint' => [
+                'optional_commands' => [
+                    ['vendor/bin/pint', '--repair'],
+                ],
+            ],
+            'larastan/larastan' => [
+                'optional_commands' => [
+                    ['vendor/bin/phpstan', 'analyse'],
+                ],
+            ],
+            'pestphp/pest',
+            'roave/security-advisories:dev-latest',
+        ],
+    ];
+
+    Config::set('laravel-omakase.composer-packages', $customConfig ?? $defaultConfig);
+}
+
+/**
+ * Set controlled test data for npm packages config
+ *
+ * @param  array<string, mixed>|null  $customConfig
+ */
+function setNpmPackagesConfig(?array $customConfig = null): void
+{
+    $defaultConfig = [
+        'dependencies' => [
+            'tailwindcss',
+            '@tailwindcss/vite',
+        ],
+        'devDependencies' => [
+            'prettier',
+            'prettier-plugin-blade',
+            'prettier-plugin-tailwindcss',
+        ],
+    ];
+
+    Config::set('laravel-omakase.npm-packages', $customConfig ?? $defaultConfig);
+}
+
+/**
+ * Create controlled test data for IDE helper package with specific scripts
+ *
+ * @param  array<string>  $scripts
+ * @return array<string, mixed>
+ */
+function createIdeHelperConfig(array $scripts): array
+{
+    return [
+        'require-dev' => [
+            'barryvdh/laravel-ide-helper' => [
+                'composer' => [
+                    'scripts' => [
+                        'post-update-cmd' => $scripts,
+                    ],
+                ],
+                'commands' => [
+                    ['php', 'artisan', 'ide-helper:generate'],
+                    ['php', 'artisan', 'ide-helper:meta'],
+                ],
+            ],
+        ],
+    ];
+}
+
 describe('OmakaseCommand', function (): void {
+    //
+    // Test Setup
+    // -------------------------------------------------------------------------------
+
+    beforeEach(function (): void {
+        // Set controlled test data for both configs by default to ensure test isolation
+        setComposerPackagesConfig();
+        setNpmPackagesConfig();
+    });
+
     //
     // Command Interface
     // -------------------------------------------------------------------------------
@@ -773,6 +890,14 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('handles composer json section merging for no changes scenario', function (): void {
+            // Mock config with IDE helper scripts that already exist (should result in no changes)
+            $ideHelperConfig = createIdeHelperConfig([
+                'Illuminate\\Foundation\\ComposerScripts::postUpdate',
+                '@php artisan ide-helper:generate',
+                '@php artisan ide-helper:meta',
+            ]);
+            setComposerPackagesConfig($ideHelperConfig);
+
             // Test scenario where no changes are needed in composer.json
             $composerJson = [
                 'name' => 'test/project',
@@ -914,6 +1039,14 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('merges scripts with existing post-update-cmd array', function (): void {
+            // Mock config with IDE helper scripts (should add 3 new scripts)
+            $ideHelperConfig = createIdeHelperConfig([
+                'Illuminate\\Foundation\\ComposerScripts::postUpdate',
+                '@php artisan ide-helper:generate',
+                '@php artisan ide-helper:meta',
+            ]);
+            setComposerPackagesConfig($ideHelperConfig);
+
             $composerJson = [
                 'name' => 'test/project',
                 'scripts' => [
@@ -937,7 +1070,9 @@ describe('OmakaseCommand', function (): void {
 
                     return count($data['scripts']['post-update-cmd']) === 4 &&
                            in_array('echo "existing command"', $data['scripts']['post-update-cmd']) &&
-                           in_array('Illuminate\\Foundation\\ComposerScripts::postUpdate', $data['scripts']['post-update-cmd']);
+                           in_array('Illuminate\\Foundation\\ComposerScripts::postUpdate', $data['scripts']['post-update-cmd']) &&
+                           in_array('@php artisan ide-helper:generate', $data['scripts']['post-update-cmd']) &&
+                           in_array('@php artisan ide-helper:meta', $data['scripts']['post-update-cmd']);
                 }))
                 ->andReturn(true);
 
@@ -949,6 +1084,14 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('does not add duplicate scripts when they already exist', function (): void {
+            // Mock config with IDE helper scripts (all already exist)
+            $ideHelperConfig = createIdeHelperConfig([
+                'Illuminate\\Foundation\\ComposerScripts::postUpdate',
+                '@php artisan ide-helper:generate',
+                '@php artisan ide-helper:meta',
+            ]);
+            setComposerPackagesConfig($ideHelperConfig);
+
             $composerJson = [
                 'name' => 'test/project',
                 'scripts' => [
@@ -1161,22 +1304,16 @@ describe('OmakaseCommand', function (): void {
                 ],
             ];
 
-            $originalConfig = config('laravel-omakase.composer-packages');
-            Config::set('laravel-omakase.composer-packages', $testConfig);
+            setComposerPackagesConfig($testConfig);
 
-            try {
-                $this->app->singleton(OmakaseCommand::class, fn () => $command);
+            $this->app->singleton(OmakaseCommand::class, fn () => $command);
 
-                artisan(OmakaseCommand::class, ['--composer' => true])
-                    ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
-                    ->expectsConfirmation('Add test/package configuration to composer.json (scripts)?', 'yes')
-                    ->expectsOutputToContain('Failed to encode composer.json data')
-                    ->expectsOutputToContain('Failed to update composer.json for test/package, continuing...')
-                    ->assertSuccessful(); // Command continues despite JSON encoding error
-            } finally {
-                // Restore original config
-                Config::set('laravel-omakase.composer-packages', $originalConfig);
-            }
+            artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->expectsConfirmation('Add test/package configuration to composer.json (scripts)?', 'yes')
+                ->expectsOutputToContain('Failed to encode composer.json data')
+                ->expectsOutputToContain('Failed to update composer.json for test/package, continuing...')
+                ->assertSuccessful(); // Command continues despite JSON encoding error
         });
 
         it('handles missing composer.json file', function (): void {
@@ -1192,6 +1329,14 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('handles string post-update-cmd conversion to array', function (): void {
+            // Mock config with IDE helper scripts (should add 3 new scripts)
+            $ideHelperConfig = createIdeHelperConfig([
+                'Illuminate\\Foundation\\ComposerScripts::postUpdate',
+                '@php artisan ide-helper:generate',
+                '@php artisan ide-helper:meta',
+            ]);
+            setComposerPackagesConfig($ideHelperConfig);
+
             $composerJson = [
                 'name' => 'test/project',
                 'scripts' => [
@@ -1212,8 +1357,11 @@ describe('OmakaseCommand', function (): void {
                     $data = json_decode($content, true);
 
                     return is_array($data['scripts']['post-update-cmd']) &&
+                           count($data['scripts']['post-update-cmd']) === 4 &&
                            in_array('single-command', $data['scripts']['post-update-cmd']) &&
-                           in_array('Illuminate\\Foundation\\ComposerScripts::postUpdate', $data['scripts']['post-update-cmd']);
+                           in_array('Illuminate\\Foundation\\ComposerScripts::postUpdate', $data['scripts']['post-update-cmd']) &&
+                           in_array('@php artisan ide-helper:generate', $data['scripts']['post-update-cmd']) &&
+                           in_array('@php artisan ide-helper:meta', $data['scripts']['post-update-cmd']);
                 }))
                 ->andReturn(true);
 
@@ -1301,9 +1449,8 @@ describe('OmakaseCommand', function (): void {
                 ],
             ];
 
-            // Temporarily override the config using Laravel's Config facade
-            $originalConfig = config('laravel-omakase.composer-packages');
-            Config::set('laravel-omakase.composer-packages', $testConfig);
+            // Mock the config
+            setComposerPackagesConfig($testConfig);
 
             // Mock the composer.json file operations
             $composerJson = ['name' => 'test/project'];
@@ -1326,9 +1473,114 @@ describe('OmakaseCommand', function (): void {
                 ->expectsOutputToContain('Added repository: https://github.com/test/repo')
                 ->expectsOutputToContain('Updated config section in composer.json')
                 ->assertSuccessful();
+        });
 
-            // Restore original config
-            Config::set('laravel-omakase.composer-packages', $originalConfig);
+        it('handles various script configurations independently of real config', function (): void {
+            // Test with completely custom package configuration
+            $customConfig = [
+                'require-dev' => [
+                    'custom/package' => [
+                        'composer' => [
+                            'scripts' => [
+                                'post-update-cmd' => [
+                                    'custom-script-1',
+                                    'custom-script-2',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ];
+            setComposerPackagesConfig($customConfig);
+
+            $composerJson = ['name' => 'test/project'];
+
+            File::shouldReceive('exists')
+                ->with(base_path('composer.json'))
+                ->andReturn(true);
+
+            File::shouldReceive('get')
+                ->with(base_path('composer.json'))
+                ->andReturn(json_encode($composerJson));
+
+            File::shouldReceive('put')
+                ->with(base_path('composer.json'), \Mockery::on(function ($content) {
+                    $data = json_decode($content, true);
+
+                    return isset($data['scripts']['post-update-cmd']) &&
+                           in_array('custom-script-1', $data['scripts']['post-update-cmd']) &&
+                           in_array('custom-script-2', $data['scripts']['post-update-cmd']);
+                }))
+                ->andReturn(true);
+
+            artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->expectsConfirmation('Add custom/package configuration to composer.json (scripts)?', 'yes')
+                ->expectsOutputToContain('Added post-update-cmd scripts to composer.json')
+                ->assertSuccessful();
+        });
+
+        it('works with empty config arrays ensuring test isolation', function (): void {
+            // Test with empty config to ensure isolation
+            $emptyConfig = [
+                'require' => [],
+                'require-dev' => [],
+            ];
+            setComposerPackagesConfig($emptyConfig);
+
+            artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->assertSuccessful();
+        });
+
+        it('handles config with multiple packages with different composer configurations', function (): void {
+            // Test multiple packages with different composer.json sections
+            $multiPackageConfig = [
+                'require-dev' => [
+                    'package1/scripts' => [
+                        'composer' => [
+                            'scripts' => [
+                                'post-install-cmd' => ['echo "package1 installed"'],
+                            ],
+                        ],
+                    ],
+                    'package2/repos' => [
+                        'composer' => [
+                            'repositories' => [
+                                [
+                                    'type' => 'vcs',
+                                    'url' => 'https://github.com/package2/repo',
+                                ],
+                            ],
+                        ],
+                    ],
+                ],
+            ];
+            setComposerPackagesConfig($multiPackageConfig);
+
+            $composerJson = ['name' => 'test/project'];
+
+            File::shouldReceive('exists')
+                ->with(base_path('composer.json'))
+                ->twice()
+                ->andReturn(true);
+
+            File::shouldReceive('get')
+                ->with(base_path('composer.json'))
+                ->twice()
+                ->andReturn(json_encode($composerJson));
+
+            File::shouldReceive('put')
+                ->twice()
+                ->andReturn(true);
+
+            artisan(OmakaseCommand::class, ['--composer' => true])
+                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
+                ->expectsConfirmation('Add package1/scripts configuration to composer.json (scripts)?', 'yes')
+                ->expectsConfirmation('Add package2/repos configuration to composer.json (repositories)?', 'yes')
+                ->expectsOutputToContain('Added post-install-cmd scripts to composer.json')
+                ->expectsOutputToContain('Added repository: https://github.com/package2/repo')
+                ->assertSuccessful();
         });
     });
 });
