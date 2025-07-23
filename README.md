@@ -92,9 +92,11 @@ php artisan db:migrate --force --seed
 
 **Development Dependencies:**
 
+- `barryvdh/laravel-debugbar` - Laravel debug bar for debugging
 - `barryvdh/laravel-ide-helper` - IDE helper for Laravel
-- `larastan/larastan` - PHPStan for Laravel (automatically runs static analysis after installation)
-- `laravel/pint` - Code style fixer (automatically fixes code style after installation)
+- `beyondcode/laravel-query-detector` - N+1 query detection
+- `larastan/larastan` - Static analysis
+- `laravel/pint` - Code style enforcement
 - `pestphp/pest` - Testing framework
 
 ### NPM Packages
