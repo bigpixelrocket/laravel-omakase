@@ -17,7 +17,7 @@ return [
     'require-dev' => [
         'barryvdh/laravel-debugbar' => [
             'commands' => [
-                ['php', 'artisan', 'vendor:publish', '--provider="Barryvdh\Debugbar\ServiceProvider"'],
+                ['php', 'artisan', 'vendor:publish', '--provider=Barryvdh\Debugbar\ServiceProvider'],
             ],
         ],
         'barryvdh/laravel-ide-helper' => [
