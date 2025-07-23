@@ -92,7 +92,7 @@ php artisan db:migrate --force --seed
 
 **Development Dependencies:**
 
-- `barryvdh/laravel-debugbar` - Laravel debug bar fo debugging
+- `barryvdh/laravel-debugbar` - Laravel debug bar for debugging
 - `barryvdh/laravel-ide-helper` - IDE helper for Laravel
 - `beyondcode/laravel-query-detector` - N+1 query detection
 - `larastan/larastan` - Static analysis
