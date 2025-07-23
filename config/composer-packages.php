@@ -15,6 +15,11 @@ return [
         ],
     ],
     'require-dev' => [
+        'barryvdh/laravel-debugbar' => [
+            'commands' => [
+                ['php', 'artisan', 'vendor:publish', '--provider="Barryvdh\Debugbar\ServiceProvider"'],
+            ],
+        ],
         'barryvdh/laravel-ide-helper' => [
             'composer' => [
                 'scripts' => [
@@ -31,6 +36,8 @@ return [
                 ['php', 'artisan', 'ide-helper:meta'],
                 ['php', 'artisan', 'ide-helper:models', '--nowrite'],
             ],
+        ],
+        'beyondcode/laravel-query-detector' => [
         ],
         'rector/rector' => [
             'optional_commands' => [
