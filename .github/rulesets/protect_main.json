@@ -36,6 +36,10 @@
           {
             "context": "pest",
             "integration_id": 15368
+          },
+          {
+            "context": "rector",
+            "integration_id": 15368
           }
         ]
       }
