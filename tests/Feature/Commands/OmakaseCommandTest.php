@@ -30,6 +30,14 @@ use function Pest\Laravel\artisan;
 //
 
 /**
+ * Extract command string from PendingProcess for test assertions
+ */
+function extractCommand(PendingProcess $process): string
+{
+    return is_array($process->command) ? implode(' ', $process->command) : $process->command;
+}
+
+/**
  * Set controlled test data for composer packages config
  *
  * @param  array<string, mixed>|null  $customConfig
@@ -198,13 +206,13 @@ describe('OmakaseCommand', function (): void {
 
             // Verify both composer and npm commands were run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
 
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm install');
             });
@@ -220,13 +228,13 @@ describe('OmakaseCommand', function (): void {
 
             // Verify only composer was run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
 
             Process::assertDidntRun(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm install');
             });
@@ -242,13 +250,13 @@ describe('OmakaseCommand', function (): void {
 
             // Verify only npm was run
             Process::assertDidntRun(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
 
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm install');
             });
@@ -275,13 +283,13 @@ describe('OmakaseCommand', function (): void {
 
             // Verify only composer was run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
 
             Process::assertDidntRun(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm install');
             });
@@ -418,7 +426,7 @@ describe('OmakaseCommand', function (): void {
                 ->assertFailed();
 
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
@@ -428,7 +436,7 @@ describe('OmakaseCommand', function (): void {
             // We need to check command length to differentiate between composer and npm
             Process::fake([
                 '*' => function (PendingProcess $process) {
-                    $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                    $command = extractCommand($process);
 
                     // composer and related commands should succeed
                     if (str_contains($command, 'composer') ||
@@ -453,13 +461,13 @@ describe('OmakaseCommand', function (): void {
 
             // Verify both commands were attempted
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
 
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm install');
             });
@@ -468,7 +476,7 @@ describe('OmakaseCommand', function (): void {
         it('handles optional command failures gracefully', function (): void {
             Process::fake([
                 '*' => function (PendingProcess $process) {
-                    $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                    $command = extractCommand($process);
 
                     // Make pint and phpstan fail
                     if (str_contains($command, 'vendor/bin/pint') ||
@@ -491,13 +499,13 @@ describe('OmakaseCommand', function (): void {
 
             // Verify that the optional commands were attempted
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'vendor/bin/pint --repair');
             });
 
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'vendor/bin/phpstan analyse');
             });
@@ -557,14 +565,14 @@ describe('OmakaseCommand', function (): void {
 
             // Verify production packages command is run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require') && ! str_contains($command, '--dev');
             });
 
             // Verify dev packages command is run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require') && str_contains($command, '--dev');
             });
@@ -579,7 +587,7 @@ describe('OmakaseCommand', function (): void {
 
             // Verify npm install command is run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm install');
             });
@@ -594,20 +602,20 @@ describe('OmakaseCommand', function (): void {
 
             // Verify that required post-install artisan commands are run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'php artisan');
             });
 
             // Verify that optional post-install commands are run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'vendor/bin/pint --repair');
             });
 
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'vendor/bin/phpstan analyse');
             });
@@ -633,13 +641,13 @@ describe('OmakaseCommand', function (): void {
 
             // Verify specific command types were run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
 
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'php artisan livewire:publish');
             });
@@ -674,7 +682,7 @@ describe('OmakaseCommand', function (): void {
 
             // Process assertions work differently with fake, just verify command ran
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
@@ -690,7 +698,7 @@ describe('OmakaseCommand', function (): void {
 
             // Should run composer require commands (at least one for packages)
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
@@ -779,7 +787,7 @@ describe('OmakaseCommand', function (): void {
 
             // Verify appropriate commands were run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require')
                     || str_contains($command, 'npm install');
@@ -827,7 +835,7 @@ describe('OmakaseCommand', function (): void {
 
             // Verify that composer commands are executed (proving config was loaded)
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
@@ -843,7 +851,7 @@ describe('OmakaseCommand', function (): void {
 
             // Verify that npm commands are executed (proving config was loaded)
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm install');
             });
@@ -877,13 +885,13 @@ describe('OmakaseCommand', function (): void {
 
             // Verify both composer and npm commands ran (proving both configs loaded)
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
 
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm install');
             });
@@ -984,7 +992,7 @@ describe('OmakaseCommand', function (): void {
 
             // Verify update command was executed
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer update');
             });
@@ -1000,7 +1008,7 @@ describe('OmakaseCommand', function (): void {
 
             // Verify npm update command was executed
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm update');
             });
@@ -1436,14 +1444,14 @@ describe('OmakaseCommand', function (): void {
 
             // Verify composer update was run automatically
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer update');
             });
 
             // Verify composer require was also run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer require');
             });
@@ -1459,14 +1467,14 @@ describe('OmakaseCommand', function (): void {
 
             // Verify npm update was run automatically
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm update');
             });
 
             // Verify npm install was also run
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm install');
             });
@@ -1485,13 +1493,13 @@ describe('OmakaseCommand', function (): void {
 
             // Verify both update commands were run automatically
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'composer update');
             });
 
             Process::assertRan(function (PendingProcess $process) {
-                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+                $command = extractCommand($process);
 
                 return str_contains($command, 'npm update');
             });
