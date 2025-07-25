@@ -14,23 +14,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - name: Setup PHP and Composer
+        uses: ./.github/actions/setup-php-composer
         with:
-          php-version: 8.4
-          extensions: json
-          coverage: none
-
-      - name: Cache Composer dependencies
-        uses: actions/cache@v3
-        with:
-          path: vendor
-          key: ${{ runner.os }}-php-8.4-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-8.4-composer-
-
-      - name: Install dependencies
-        run: composer install --prefer-dist --no-interaction --no-progress
+          flux-username: ${{ secrets.FLUX_USERNAME }}
+          flux-license-key: ${{ secrets.FLUX_LICENSE_KEY }}
 
       - run: mkdir -p /tmp/rector
 
