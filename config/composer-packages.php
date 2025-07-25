@@ -58,7 +58,11 @@ return [
                 ['vendor/bin/phpstan', 'analyse'],
             ],
         ],
-        'pestphp/pest',
+        'pestphp/pest' => [
+            'commands' => [
+                ['php', 'artisan', 'key:generate', '--env=testing', '--force'],
+            ],
+        ],
         'roave/security-advisories:dev-latest',
     ],
 ];
