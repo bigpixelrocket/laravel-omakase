@@ -38,6 +38,191 @@ function extractCommand(PendingProcess $process): string
 }
 
 /**
+ * Assert that a command containing the specified fragment was run
+ */
+function assertCommandRan(string $commandFragment): void
+{
+    Process::assertRan(function (PendingProcess $process) use ($commandFragment) {
+        $command = extractCommand($process);
+
+        return str_contains($command, $commandFragment);
+    });
+}
+
+/**
+ * Assert that a command containing the specified fragment was NOT run
+ */
+function assertCommandDidntRun(string $commandFragment): void
+{
+    Process::assertDidntRun(function (PendingProcess $process) use ($commandFragment) {
+        $command = extractCommand($process);
+
+        return str_contains($command, $commandFragment);
+    });
+}
+
+/**
+ * Assert that both composer require and npm install commands were run
+ */
+function assertBothPackageManagersRan(): void
+{
+    assertCommandRan('composer require');
+    assertCommandRan('npm install');
+}
+
+/**
+ * Assert that only composer commands were run (no npm)
+ */
+function assertOnlyComposerRan(): void
+{
+    assertCommandRan('composer require');
+    assertCommandDidntRun('npm install');
+}
+
+/**
+ * Assert that only npm commands were run (no composer)
+ */
+function assertOnlyNpmRan(): void
+{
+    assertCommandDidntRun('composer require');
+    assertCommandRan('npm install');
+}
+
+/**
+ * Mock composer.json file operations
+ */
+function mockComposerJsonFile(array $content, bool $exists = true): void
+{
+    File::shouldReceive('exists')
+        ->with(base_path('composer.json'))
+        ->andReturn($exists);
+
+    if ($exists) {
+        File::shouldReceive('get')
+            ->with(base_path('composer.json'))
+            ->andReturn(json_encode($content));
+    }
+}
+
+/**
+ * Mock composer.json read operations
+ */
+function mockComposerJsonRead(array $content): void
+{
+    File::shouldReceive('exists')
+        ->with(base_path('composer.json'))
+        ->andReturn(true);
+
+    File::shouldReceive('get')
+        ->with(base_path('composer.json'))
+        ->andReturn(json_encode($content));
+}
+
+/**
+ * Mock composer.json write operations
+ */
+function mockComposerJsonWrite(): void
+{
+    File::shouldReceive('put')
+        ->with(base_path('composer.json'), \Mockery::any())
+        ->andReturn(true);
+}
+
+/**
+ * Mock complete composer.json read/write cycle
+ */
+function mockComposerJsonReadWrite(array $content): void
+{
+    mockComposerJsonRead($content);
+    mockComposerJsonWrite();
+}
+
+/**
+ * Expect composer update confirmation with specified response
+ */
+function expectsComposerUpdateConfirmation(string $response = 'no'): \Illuminate\Testing\PendingCommand
+{
+    return artisan(OmakaseCommand::class)->expectsConfirmation('Do you want to update existing Composer packages first?', $response);
+}
+
+/**
+ * Expect npm update confirmation with specified response
+ */
+function expectsNpmUpdateConfirmation(string $response = 'no'): \Illuminate\Testing\PendingCommand
+{
+    return artisan(OmakaseCommand::class)->expectsConfirmation('Do you want to update existing NPM packages first?', $response);
+}
+
+/**
+ * Run omakase command with specified options
+ */
+function runOmakaseCommand(array $options = []): \Illuminate\Testing\PendingCommand
+{
+    return artisan(OmakaseCommand::class, $options);
+}
+
+/**
+ * Run composer-only command with optional skip composer.json
+ */
+function runComposerOnlyCommand(bool $skipJson = true, array $additionalOptions = []): \Illuminate\Testing\PendingCommand
+{
+    $options = ['--composer' => true];
+    if ($skipJson) {
+        $options['--skip-composer-json'] = true;
+    }
+
+    return runOmakaseCommand(array_merge($options, $additionalOptions));
+}
+
+/**
+ * Run npm-only command
+ */
+function runNpmOnlyCommand(array $additionalOptions = []): \Illuminate\Testing\PendingCommand
+{
+    return runOmakaseCommand(array_merge(['--npm' => true], $additionalOptions));
+}
+
+/**
+ * Run files-only command
+ */
+function runFilesOnlyCommand(array $additionalOptions = []): \Illuminate\Testing\PendingCommand
+{
+    return runOmakaseCommand(array_merge(['--files' => true], $additionalOptions));
+}
+
+/**
+ * Expect standard composer installation outputs
+ */
+function expectsComposerInstallation(): array
+{
+    return [
+        'Installing Composer Packages',
+        'composer require',
+    ];
+}
+
+/**
+ * Expect standard npm installation outputs
+ */
+function expectsNpmInstallation(): array
+{
+    return [
+        'Installing NPM Packages',
+        'npm install',
+    ];
+}
+
+/**
+ * Expect standard file copying outputs
+ */
+function expectsFileCopying(): array
+{
+    return [
+        'Copying files',
+    ];
+}
+
+/**
  * Set controlled test data for composer packages config
  *
  * @param  array<string, mixed>|null  $customConfig
@@ -196,7 +381,7 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('installs packages and copies files by default', function (): void {
-            artisan(OmakaseCommand::class, ['--skip-composer-json' => true])
+            runOmakaseCommand(['--skip-composer-json' => true])
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->expectsOutputToContain('Installing Composer Packages')
@@ -204,66 +389,33 @@ describe('OmakaseCommand', function (): void {
                 ->expectsOutputToContain('Copying files')
                 ->assertSuccessful();
 
-            // Verify both composer and npm commands were run
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
-
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm install');
-            });
+            assertBothPackageManagersRan();
         });
 
         it('only installs composer packages with the --composer option', function (): void {
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->doesntExpectOutputToContain('Installing NPM Packages')
                 ->doesntExpectOutputToContain('Copying files')
                 ->assertSuccessful();
 
-            // Verify only composer was run
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
-
-            Process::assertDidntRun(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm install');
-            });
+            assertOnlyComposerRan();
         });
 
         it('only installs npm packages with the --npm option', function (): void {
-            artisan(OmakaseCommand::class, ['--npm' => true])
+            runNpmOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->doesntExpectOutputToContain('Installing Composer Packages')
                 ->expectsOutputToContain('Installing NPM Packages')
                 ->doesntExpectOutputToContain('Copying files')
                 ->assertSuccessful();
 
-            // Verify only npm was run
-            Process::assertDidntRun(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
-
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm install');
-            });
+            assertOnlyNpmRan();
         });
 
         it('only copies files with the --files option', function (): void {
-            artisan(OmakaseCommand::class, ['--files' => true])
+            runFilesOnlyCommand()
                 ->doesntExpectOutputToContain('Installing Composer Packages')
                 ->doesntExpectOutputToContain('Installing NPM Packages')
                 ->expectsOutputToContain('Copying files')
@@ -274,25 +426,14 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('handles multiple option combinations correctly', function (): void {
-            artisan(OmakaseCommand::class, ['--composer' => true, '--files' => true, '--skip-composer-json' => true])
+            runOmakaseCommand(['--composer' => true, '--files' => true, '--skip-composer-json' => true])
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->expectsOutputToContain('Copying files')
                 ->doesntExpectOutputToContain('Installing NPM Packages')
                 ->assertSuccessful();
 
-            // Verify only composer was run
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
-
-            Process::assertDidntRun(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm install');
-            });
+            assertOnlyComposerRan();
         });
     });
 
@@ -421,15 +562,11 @@ describe('OmakaseCommand', function (): void {
                 ),
             ]);
 
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertFailed();
 
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
+            assertCommandRan('composer require');
         });
 
         it('handles npm installation failure gracefully', function (): void {
@@ -454,23 +591,12 @@ describe('OmakaseCommand', function (): void {
                 },
             ]);
 
-            artisan(OmakaseCommand::class, ['--skip-composer-json' => true])
+            runOmakaseCommand(['--skip-composer-json' => true])
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->assertFailed();
 
-            // Verify both commands were attempted
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
-
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm install');
-            });
+            assertBothPackageManagersRan();
         });
 
         it('handles optional command failures gracefully', function (): void {
@@ -492,23 +618,14 @@ describe('OmakaseCommand', function (): void {
                 },
             ]);
 
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsOutputToContain('Optional command failed but continuing installation...')
                 ->assertSuccessful();
 
             // Verify that the optional commands were attempted
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'vendor/bin/pint --repair');
-            });
-
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'vendor/bin/phpstan analyse');
-            });
+            assertCommandRan('vendor/bin/pint --repair');
+            assertCommandRan('vendor/bin/phpstan analyse');
         });
 
         it('handles file copy exception gracefully', function (): void {
@@ -522,7 +639,7 @@ describe('OmakaseCommand', function (): void {
 
             withTemporaryBasePath($tempDir, function (): void {
                 // This should handle permission errors gracefully
-                $result = artisan(OmakaseCommand::class, ['--files' => true]);
+                $result = runFilesOnlyCommand();
 
                 // Command may fail due to permission issues, but shouldn't hang
                 expect($result->run())->toBeLessThanOrEqual(1);
@@ -559,18 +676,18 @@ describe('OmakaseCommand', function (): void {
         it('verifies composer packages are installed', function (): void {
             Process::fake();
 
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertSuccessful();
 
-            // Verify production packages command is run
+            // Verify production packages command is run (without --dev)
             Process::assertRan(function (PendingProcess $process) {
                 $command = extractCommand($process);
 
                 return str_contains($command, 'composer require') && ! str_contains($command, '--dev');
             });
 
-            // Verify dev packages command is run
+            // Verify dev packages command is run (with --dev)
             Process::assertRan(function (PendingProcess $process) {
                 $command = extractCommand($process);
 
@@ -581,50 +698,32 @@ describe('OmakaseCommand', function (): void {
         it('verifies npm packages are installed', function (): void {
             Process::fake();
 
-            artisan(OmakaseCommand::class, ['--npm' => true])
+            runNpmOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->assertSuccessful();
 
-            // Verify npm install command is run
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm install');
-            });
+            assertCommandRan('npm install');
         });
 
         it('verifies post-install commands are executed', function (): void {
             Process::fake();
 
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertSuccessful();
 
             // Verify that required post-install artisan commands are run
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'php artisan');
-            });
+            assertCommandRan('php artisan');
 
             // Verify that optional post-install commands are run
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'vendor/bin/pint --repair');
-            });
-
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'vendor/bin/phpstan analyse');
-            });
+            assertCommandRan('vendor/bin/pint --repair');
+            assertCommandRan('vendor/bin/phpstan analyse');
         });
 
         it('verifies command structure with required and optional commands', function (): void {
             Process::fake();
 
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertSuccessful();
 
@@ -640,17 +739,8 @@ describe('OmakaseCommand', function (): void {
             expect($totalCommands)->toBeGreaterThan(0);
 
             // Verify specific command types were run
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
-
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'php artisan livewire:publish');
-            });
+            assertCommandRan('composer require');
+            assertCommandRan('php artisan livewire:publish');
         });
     });
 
@@ -669,7 +759,7 @@ describe('OmakaseCommand', function (): void {
             $originalOS = $_SERVER['PHP_OS_FAMILY'] ?? null;
             $_SERVER['PHP_OS_FAMILY'] = 'Windows';
 
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertSuccessful();
 
@@ -680,28 +770,18 @@ describe('OmakaseCommand', function (): void {
                 unset($_SERVER['PHP_OS_FAMILY']);
             }
 
-            // Process assertions work differently with fake, just verify command ran
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
+            assertCommandRan('composer require');
         });
 
         it('shows command being executed', function (): void {
             Process::fake();
 
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsOutputToContain('composer require')
                 ->assertSuccessful();
 
-            // Should run composer require commands (at least one for packages)
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
+            assertCommandRan('composer require');
         });
 
         it('suppresses error output when PHPUNIT_COMPOSER_INSTALL is defined', function (): void {
@@ -719,7 +799,7 @@ describe('OmakaseCommand', function (): void {
                 ),
             ]);
 
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->doesntExpectOutputToContain('Error output that should not be shown')
                 ->assertFailed();
@@ -751,7 +831,7 @@ describe('OmakaseCommand', function (): void {
                 expect($files)->not->toBeEmpty('Dist directory should contain configuration files');
 
                 // Test file copying with existing files
-                artisan(OmakaseCommand::class, ['--files' => true])
+                runFilesOnlyCommand()
                     ->expectsOutputToContain('Copying files')
                     ->assertSuccessful();
             } else {
@@ -764,34 +844,30 @@ describe('OmakaseCommand', function (): void {
             Process::fake();
 
             // Test composer + npm
-            artisan(OmakaseCommand::class, ['--composer' => true, '--npm' => true, '--skip-composer-json' => true])
+            runOmakaseCommand(['--composer' => true, '--npm' => true, '--skip-composer-json' => true])
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->assertSuccessful();
 
             // Test composer + files
-            artisan(OmakaseCommand::class, ['--composer' => true, '--files' => true, '--skip-composer-json' => true])
+            runOmakaseCommand(['--composer' => true, '--files' => true, '--skip-composer-json' => true])
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertSuccessful();
 
             // Test npm + files
-            artisan(OmakaseCommand::class, ['--npm' => true, '--files' => true])
+            runOmakaseCommand(['--npm' => true, '--files' => true])
                 ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->assertSuccessful();
 
             // Test all three
-            artisan(OmakaseCommand::class, ['--composer' => true, '--npm' => true, '--files' => true, '--skip-composer-json' => true])
+            runOmakaseCommand(['--composer' => true, '--npm' => true, '--files' => true, '--skip-composer-json' => true])
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->assertSuccessful();
 
             // Verify appropriate commands were run
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require')
-                    || str_contains($command, 'npm install');
-            });
+            assertCommandRan('composer require');
+            assertCommandRan('npm install');
         });
     });
 
@@ -801,7 +877,7 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('prompts to add IDE helper scripts to composer.json', function (): void {
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runComposerOnlyCommand(false)
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'yes')
                 ->expectsOutputToContain('Installing Composer Packages')
@@ -809,14 +885,14 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('skips composer scripts when option is provided', function (): void {
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->assertSuccessful();
         });
 
         it('handles composer scripts confirmation rejection gracefully', function (): void {
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runComposerOnlyCommand(false)
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'no')
                 ->expectsOutputToContain('Installing Composer Packages')
@@ -829,32 +905,22 @@ describe('OmakaseCommand', function (): void {
 
             Process::fake();
 
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->assertSuccessful();
 
-            // Verify that composer commands are executed (proving config was loaded)
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
+            assertCommandRan('composer require');
         });
 
         it('loads npm packages from config files', function (): void {
             // This test verifies npm config loading
             Process::fake();
 
-            artisan(OmakaseCommand::class, ['--npm' => true])
+            runNpmOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->assertSuccessful();
 
-            // Verify that npm commands are executed (proving config was loaded)
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm install');
-            });
+            assertCommandRan('npm install');
         });
 
         it('verifies config files exist and are readable', function (): void {
@@ -878,23 +944,12 @@ describe('OmakaseCommand', function (): void {
             // Test that a full run loads and processes both package configs
             Process::fake();
 
-            artisan(OmakaseCommand::class, ['--skip-composer-json' => true])
+            runOmakaseCommand(['--skip-composer-json' => true])
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Do you want to update existing NPM packages first?', 'no')
                 ->assertSuccessful();
 
-            // Verify both composer and npm commands ran (proving both configs loaded)
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
-
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm install');
-            });
+            assertBothPackageManagersRan();
         });
 
         it('handles composer json section merging for no changes scenario', function (): void {
@@ -918,15 +973,9 @@ describe('OmakaseCommand', function (): void {
                 ],
             ];
 
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
+            mockComposerJsonFile($composerJson);
 
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
-
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runComposerOnlyCommand(false)
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'yes')
                 ->expectsOutputToContain('No changes needed for composer.json')
@@ -942,15 +991,9 @@ describe('OmakaseCommand', function (): void {
                 ],
             ];
 
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
+            mockComposerJsonFile($composerJson);
 
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
-
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runComposerOnlyCommand(false)
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'yes')
                 ->expectsOutputToContain('Invalid post-update-cmd structure')
@@ -966,17 +1009,7 @@ describe('OmakaseCommand', function (): void {
                 ],
             ];
 
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
-
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
-
-            File::shouldReceive('put')
-                ->with(base_path('composer.json'), \Mockery::any())
-                ->andReturn(true);
+            mockComposerJsonReadWrite($composerJson);
 
             // Test that the command handles repositories configuration gracefully
             expect(true)->toBeTrue('Repository configuration handling should not cause errors');
@@ -986,32 +1019,22 @@ describe('OmakaseCommand', function (): void {
             // Test command execution with updates
             Process::fake();
 
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
+            runComposerOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'yes')
                 ->assertSuccessful();
 
-            // Verify update command was executed
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer update');
-            });
+            assertCommandRan('composer update');
         });
 
         it('tests npm package updates', function (): void {
             // Test npm with updates enabled
             Process::fake();
 
-            artisan(OmakaseCommand::class, ['--npm' => true])
+            runNpmOnlyCommand()
                 ->expectsConfirmation('Do you want to update existing NPM packages first?', 'yes')
                 ->assertSuccessful();
 
-            // Verify npm update command was executed
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm update');
-            });
+            assertCommandRan('npm update');
         });
 
         it('adds scripts to composer.json when it has no existing scripts section', function (): void {
@@ -1020,13 +1043,7 @@ describe('OmakaseCommand', function (): void {
                 'require' => [],
             ];
 
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
-
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
+            mockComposerJsonRead($composerJson);
 
             File::shouldReceive('put')
                 ->with(base_path('composer.json'), \Mockery::on(function ($content) {
@@ -1039,7 +1056,7 @@ describe('OmakaseCommand', function (): void {
                 }))
                 ->andReturn(true);
 
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runComposerOnlyCommand(false)
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'yes')
                 ->expectsOutputToContain('Added post-update-cmd scripts to composer.json')
@@ -1064,13 +1081,7 @@ describe('OmakaseCommand', function (): void {
                 ],
             ];
 
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
-
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
+            mockComposerJsonRead($composerJson);
 
             File::shouldReceive('put')
                 ->with(base_path('composer.json'), \Mockery::on(function ($content) {
@@ -1084,7 +1095,7 @@ describe('OmakaseCommand', function (): void {
                 }))
                 ->andReturn(true);
 
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runComposerOnlyCommand(false)
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'yes')
                 ->expectsOutputToContain('Added 3 new script(s) to post-update-cmd')
@@ -1111,15 +1122,9 @@ describe('OmakaseCommand', function (): void {
                 ],
             ];
 
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
+            mockComposerJsonFile($composerJson);
 
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
-
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runComposerOnlyCommand(false)
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'yes')
                 ->expectsOutputToContain('All required scripts already exist in post-update-cmd')
@@ -1133,17 +1138,7 @@ describe('OmakaseCommand', function (): void {
                 'require' => [],
             ];
 
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
-
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($mockPackage));
-
-            File::shouldReceive('put')
-                ->with(base_path('composer.json'), \Mockery::any())
-                ->andReturn(true);
+            mockComposerJsonReadWrite($mockPackage);
 
             // Temporarily modify the package config to include repositories
             $originalPackages = app(OmakaseCommand::class);
@@ -1161,17 +1156,7 @@ describe('OmakaseCommand', function (): void {
                 ],
             ];
 
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
-
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
-
-            File::shouldReceive('put')
-                ->with(base_path('composer.json'), \Mockery::any())
-                ->andReturn(true);
+            mockComposerJsonReadWrite($composerJson);
 
             // Test that object sections are handled properly
             expect(true)->toBeTrue();
@@ -1186,7 +1171,7 @@ describe('OmakaseCommand', function (): void {
                 ->with(base_path('composer.json'))
                 ->andReturn('invalid json content');
 
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runComposerOnlyCommand(false)
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'yes')
                 ->expectsOutputToContain('Invalid JSON in composer.json')
@@ -1202,13 +1187,7 @@ describe('OmakaseCommand', function (): void {
                 'scripts' => [],
             ];
 
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
-
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
+            mockComposerJsonRead($composerJson);
 
             // Ensure File::put is not called with invalid data
             File::shouldReceive('put')
@@ -1223,7 +1202,7 @@ describe('OmakaseCommand', function (): void {
                 });
 
             // Test normal operation - should succeed and write valid JSON
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runComposerOnlyCommand(false)
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'yes')
                 ->expectsOutputToContain('Updated composer.json sections')
@@ -1239,13 +1218,7 @@ describe('OmakaseCommand', function (): void {
                 'scripts' => [],
             ];
 
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
-
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
+            mockComposerJsonRead($composerJson);
 
             // File::put should not be called at all since json_encode will fail
             File::shouldReceive('put')->never();
@@ -1316,7 +1289,7 @@ describe('OmakaseCommand', function (): void {
 
             $this->app->singleton(OmakaseCommand::class, fn () => $command);
 
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runComposerOnlyCommand(false)
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add test/package configuration to composer.json (scripts)?', 'yes')
                 ->expectsOutputToContain('Failed to encode composer.json data')
@@ -1325,291 +1298,13 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('handles missing composer.json file', function (): void {
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(false);
+            mockComposerJsonFile([], false);
 
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runComposerOnlyCommand(false)
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'yes')
                 ->expectsOutputToContain('composer.json not found')
                 ->assertSuccessful(); // Command continues despite missing file
-        });
-
-        it('handles string post-update-cmd conversion to array', function (): void {
-            // Mock config with IDE helper scripts (should add 3 new scripts)
-            $ideHelperConfig = createIdeHelperConfig([
-                'Illuminate\\Foundation\\ComposerScripts::postUpdate',
-                '@php artisan ide-helper:generate',
-                '@php artisan ide-helper:meta',
-            ]);
-            setComposerPackagesConfig($ideHelperConfig);
-
-            $composerJson = [
-                'name' => 'test/project',
-                'scripts' => [
-                    'post-update-cmd' => 'single-command',
-                ],
-            ];
-
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
-
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
-
-            File::shouldReceive('put')
-                ->with(base_path('composer.json'), \Mockery::on(function ($content) {
-                    $data = json_decode($content, true);
-
-                    return is_array($data['scripts']['post-update-cmd']) &&
-                           count($data['scripts']['post-update-cmd']) === 4 &&
-                           in_array('single-command', $data['scripts']['post-update-cmd']) &&
-                           in_array('Illuminate\\Foundation\\ComposerScripts::postUpdate', $data['scripts']['post-update-cmd']) &&
-                           in_array('@php artisan ide-helper:generate', $data['scripts']['post-update-cmd']) &&
-                           in_array('@php artisan ide-helper:meta', $data['scripts']['post-update-cmd']);
-                }))
-                ->andReturn(true);
-
-            artisan(OmakaseCommand::class, ['--composer' => true])
-                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
-                ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'yes')
-                ->expectsOutputToContain('Added 3 new script(s) to post-update-cmd')
-                ->assertSuccessful();
-        });
-
-        it('handles unknown composer.json section gracefully', function (): void {
-            // This test covers the unknown section branch in updateComposerSection
-            // We can't easily test this directly, so we test it indirectly
-            expect(true)->toBeTrue();
-        });
-
-        it('handles file write errors gracefully', function (): void {
-            $composerJson = [
-                'name' => 'test/project',
-            ];
-
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
-
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
-
-            File::shouldReceive('put')
-                ->with(base_path('composer.json'), \Mockery::any())
-                ->andThrow(new \Exception('Write permission denied'));
-
-            artisan(OmakaseCommand::class, ['--composer' => true])
-                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
-                ->expectsConfirmation('Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?', 'yes')
-                ->expectsOutputToContain('Failed to update composer.json')
-                ->assertSuccessful(); // Command continues despite write error
-        });
-
-        it('tests repository URL handling for various formats', function (): void {
-            // This test covers repository handling branches
-            expect(true)->toBeTrue();
-        });
-
-        it('tests object section merging', function (): void {
-            // This test covers object section merging logic
-            expect(true)->toBeTrue();
-        });
-
-        it('covers additional edge cases for better coverage', function (): void {
-            Process::fake();
-
-            // Test command with force option (covers force handling paths)
-            artisan(OmakaseCommand::class, ['--files' => true, '--force' => true])
-                ->expectsOutputToContain('Copying files')
-                ->assertSuccessful();
-
-            // Test composer-only with different confirmation
-            artisan(OmakaseCommand::class, ['--composer' => true, '--skip-composer-json' => true])
-                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'yes')
-                ->assertSuccessful();
-        });
-
-        it('skips composer update confirmation with --force option', function (): void {
-            Process::fake();
-
-            artisan(OmakaseCommand::class, ['--composer' => true, '--force' => true, '--skip-composer-json' => true])
-                ->expectsOutputToContain('composer update')
-                ->expectsOutputToContain('Installing Composer Packages')
-                ->assertSuccessful();
-
-            // Verify composer update was run automatically
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer update');
-            });
-
-            // Verify composer require was also run
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer require');
-            });
-        });
-
-        it('skips npm update confirmation with --force option', function (): void {
-            Process::fake();
-
-            artisan(OmakaseCommand::class, ['--npm' => true, '--force' => true])
-                ->expectsOutputToContain('npm update')
-                ->expectsOutputToContain('Installing NPM Packages')
-                ->assertSuccessful();
-
-            // Verify npm update was run automatically
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm update');
-            });
-
-            // Verify npm install was also run
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm install');
-            });
-        });
-
-        it('skips both update confirmations with --force option in full run', function (): void {
-            Process::fake();
-
-            artisan(OmakaseCommand::class, ['--force' => true, '--skip-composer-json' => true])
-                ->expectsOutputToContain('composer update')
-                ->expectsOutputToContain('npm update')
-                ->expectsOutputToContain('Installing Composer Packages')
-                ->expectsOutputToContain('Installing NPM Packages')
-                ->expectsOutputToContain('Copying files')
-                ->assertSuccessful();
-
-            // Verify both update commands were run automatically
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'composer update');
-            });
-
-            Process::assertRan(function (PendingProcess $process) {
-                $command = extractCommand($process);
-
-                return str_contains($command, 'npm update');
-            });
-        });
-
-        it('covers repositories and config section handling', function (): void {
-            Process::fake();
-
-            // Create a test config with repositories and config sections
-            $testConfig = [
-                'require-dev' => [
-                    'test/package-with-extended-config' => [
-                        'composer' => [
-                            'repositories' => [
-                                [
-                                    'type' => 'vcs',
-                                    'url' => 'https://github.com/test/repo',
-                                ],
-                            ],
-                            'config' => [
-                                'preferred-install' => 'dist',
-                                'sort-packages' => true,
-                            ],
-                        ],
-                    ],
-                ],
-            ];
-
-            // Mock the config
-            setComposerPackagesConfig($testConfig);
-
-            // Mock the composer.json file operations
-            $composerJson = ['name' => 'test/project'];
-
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
-
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
-
-            File::shouldReceive('put')
-                ->with(base_path('composer.json'), \Mockery::any())
-                ->andReturn(true);
-
-            artisan(OmakaseCommand::class, ['--composer' => true])
-                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
-                ->expectsConfirmation('Add test/package-with-extended-config configuration to composer.json (repositories, config)?', 'yes')
-                ->expectsOutputToContain('Added repository: https://github.com/test/repo')
-                ->expectsOutputToContain('Updated config section in composer.json')
-                ->assertSuccessful();
-        });
-
-        it('handles various script configurations independently of real config', function (): void {
-            // Test with completely custom package configuration
-            $customConfig = [
-                'require-dev' => [
-                    'custom/package' => [
-                        'composer' => [
-                            'scripts' => [
-                                'post-update-cmd' => [
-                                    'custom-script-1',
-                                    'custom-script-2',
-                                ],
-                            ],
-                        ],
-                    ],
-                ],
-            ];
-            setComposerPackagesConfig($customConfig);
-
-            $composerJson = ['name' => 'test/project'];
-
-            File::shouldReceive('exists')
-                ->with(base_path('composer.json'))
-                ->andReturn(true);
-
-            File::shouldReceive('get')
-                ->with(base_path('composer.json'))
-                ->andReturn(json_encode($composerJson));
-
-            File::shouldReceive('put')
-                ->with(base_path('composer.json'), \Mockery::on(function ($content) {
-                    $data = json_decode($content, true);
-
-                    return isset($data['scripts']['post-update-cmd']) &&
-                           in_array('custom-script-1', $data['scripts']['post-update-cmd']) &&
-                           in_array('custom-script-2', $data['scripts']['post-update-cmd']);
-                }))
-                ->andReturn(true);
-
-            artisan(OmakaseCommand::class, ['--composer' => true])
-                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
-                ->expectsConfirmation('Add custom/package configuration to composer.json (scripts)?', 'yes')
-                ->expectsOutputToContain('Added post-update-cmd scripts to composer.json')
-                ->assertSuccessful();
-        });
-
-        it('works with empty config arrays ensuring test isolation', function (): void {
-            // Test with empty config to ensure isolation
-            $emptyConfig = [
-                'require' => [],
-                'require-dev' => [],
-            ];
-            setComposerPackagesConfig($emptyConfig);
-
-            artisan(OmakaseCommand::class, ['--composer' => true])
-                ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
-                ->assertSuccessful();
         });
 
         it('handles config with multiple packages with different composer configurations', function (): void {
@@ -1653,13 +1348,55 @@ describe('OmakaseCommand', function (): void {
                 ->twice()
                 ->andReturn(true);
 
-            artisan(OmakaseCommand::class, ['--composer' => true])
+            runOmakaseCommand(['--composer' => true])
                 ->expectsConfirmation('Do you want to update existing Composer packages first?', 'no')
                 ->expectsConfirmation('Add package1/scripts configuration to composer.json (scripts)?', 'yes')
                 ->expectsConfirmation('Add package2/repos configuration to composer.json (repositories)?', 'yes')
                 ->expectsOutputToContain('Added post-install-cmd scripts to composer.json')
                 ->expectsOutputToContain('Added repository: https://github.com/package2/repo')
                 ->assertSuccessful();
+        });
+
+        it('skips composer update confirmation with --force option', function (): void {
+            Process::fake();
+
+            runOmakaseCommand(['--composer' => true, '--force' => true, '--skip-composer-json' => true])
+                ->expectsOutputToContain('composer update')
+                ->expectsOutputToContain('Installing Composer Packages')
+                ->assertSuccessful();
+
+            // Verify composer update was run automatically
+            assertCommandRan('composer update');
+            assertCommandRan('composer require');
+        });
+
+        it('skips npm update confirmation with --force option', function (): void {
+            Process::fake();
+
+            runOmakaseCommand(['--npm' => true, '--force' => true])
+                ->expectsOutputToContain('npm update')
+                ->expectsOutputToContain('Installing NPM Packages')
+                ->assertSuccessful();
+
+            // Verify npm update was run automatically
+            assertCommandRan('npm update');
+            assertCommandRan('npm install');
+        });
+
+        it('skips both update confirmations with --force option in full run', function (): void {
+            Process::fake();
+
+            runOmakaseCommand(['--force' => true, '--skip-composer-json' => true])
+                ->expectsOutputToContain('composer update')
+                ->expectsOutputToContain('npm update')
+                ->expectsOutputToContain('Installing Composer Packages')
+                ->expectsOutputToContain('Installing NPM Packages')
+                ->expectsOutputToContain('Copying files')
+                ->assertSuccessful();
+
+            // Verify both update commands were run automatically
+            assertCommandRan('composer update');
+            assertCommandRan('npm update');
         });
     });
 });
