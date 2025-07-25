@@ -27,7 +27,7 @@ class OmakaseCommand extends Command
         {--composer : Install only composer packages}
         {--npm : Install only npm packages}
         {--skip-composer-json : Skip modifying composer.json}
-        {--force : Override existing files when copying}';
+        {--force : Override existing files and skip confirmation prompts}';
 
     protected $description = 'An opinionated menu for your next Laravel project';
 
@@ -70,7 +70,7 @@ class OmakaseCommand extends Command
             $this->newLine();
 
             // Ask if user wants to update existing packages first
-            if ($this->confirm('Do you want to update existing Composer packages first?', false)) {
+            if ($this->option('force') || $this->confirm('Do you want to update existing Composer packages first?', false)) {
                 $this->warn('composer update');
                 if (! $this->exec(['composer', 'update'])) {
                     return self::FAILURE;
@@ -103,7 +103,7 @@ class OmakaseCommand extends Command
             $this->newLine();
 
             // Ask if user wants to update existing packages first
-            if ($this->confirm('Do you want to update existing NPM packages first?', false)) {
+            if ($this->option('force') || $this->confirm('Do you want to update existing NPM packages first?', false)) {
                 $this->warn('npm update');
                 if (! $this->exec(['npm', 'update'])) {
                     return self::FAILURE;

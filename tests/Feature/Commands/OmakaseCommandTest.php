@@ -1426,6 +1426,77 @@ describe('OmakaseCommand', function (): void {
                 ->assertSuccessful();
         });
 
+        it('skips composer update confirmation with --force option', function (): void {
+            Process::fake();
+
+            artisan(OmakaseCommand::class, ['--composer' => true, '--force' => true, '--skip-composer-json' => true])
+                ->expectsOutputToContain('composer update')
+                ->expectsOutputToContain('Installing Composer Packages')
+                ->assertSuccessful();
+
+            // Verify composer update was run automatically
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'composer update');
+            });
+
+            // Verify composer require was also run
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'composer require');
+            });
+        });
+
+        it('skips npm update confirmation with --force option', function (): void {
+            Process::fake();
+
+            artisan(OmakaseCommand::class, ['--npm' => true, '--force' => true])
+                ->expectsOutputToContain('npm update')
+                ->expectsOutputToContain('Installing NPM Packages')
+                ->assertSuccessful();
+
+            // Verify npm update was run automatically
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'npm update');
+            });
+
+            // Verify npm install was also run
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'npm install');
+            });
+        });
+
+        it('skips both update confirmations with --force option in full run', function (): void {
+            Process::fake();
+
+            artisan(OmakaseCommand::class, ['--force' => true, '--skip-composer-json' => true])
+                ->expectsOutputToContain('composer update')
+                ->expectsOutputToContain('npm update')
+                ->expectsOutputToContain('Installing Composer Packages')
+                ->expectsOutputToContain('Installing NPM Packages')
+                ->expectsOutputToContain('Copying files')
+                ->assertSuccessful();
+
+            // Verify both update commands were run automatically
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'composer update');
+            });
+
+            Process::assertRan(function (PendingProcess $process) {
+                $command = is_array($process->command) ? implode(' ', $process->command) : $process->command;
+
+                return str_contains($command, 'npm update');
+            });
+        });
+
         it('covers repositories and config section handling', function (): void {
             Process::fake();
 
