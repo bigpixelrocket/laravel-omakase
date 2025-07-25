@@ -7,7 +7,11 @@ return [
                 ['php', 'artisan', 'livewire:publish', '--config'],
             ],
         ],
-        'livewire/flux',
+        'livewire/flux' => [
+            'optional_commands' => [
+                ['php', 'artisan', 'flux:activate'],
+            ],
+        ],
         'spatie/laravel-data' => [
             'commands' => [
                 ['php', 'artisan', 'vendor:publish', '--provider=Spatie\LaravelData\LaravelDataServiceProvider', '--tag=data-config'],
@@ -54,7 +58,11 @@ return [
                 ['vendor/bin/phpstan', 'analyse'],
             ],
         ],
-        'pestphp/pest',
+        'pestphp/pest' => [
+            'commands' => [
+                ['php', 'artisan', 'key:generate', '--env=testing', '--force'],
+            ],
+        ],
         'roave/security-advisories:dev-latest',
     ],
 ];

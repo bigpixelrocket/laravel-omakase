@@ -1,0 +1,33 @@
+name: "Setup Node.js and NPM"
+description: "Sets up Node.js and installs NPM dependencies with caching"
+
+inputs:
+  node-version:
+    description: "Node.js version to setup"
+    required: false
+    default: "22"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: Get NPM Cache Directory
+      id: npm-cache
+      shell: bash
+      run: echo "dir=$(npm config get cache)" >> $GITHUB_OUTPUT
+
+    - name: Cache NPM dependencies
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.npm-cache.outputs.dir }}
+        key: ${{ runner.os }}-node-${{ inputs.node-version }}-npm-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-${{ inputs.node-version }}-npm-
+
+    - name: Install NPM dependencies
+      shell: bash
+      run: npm ci --prefer-offline --no-audit

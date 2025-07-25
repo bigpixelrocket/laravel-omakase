@@ -11,56 +11,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+      - name: Setup PHP and Composer
+        uses: ./.github/actions/setup-php-composer
         with:
-          php-version: 8.4
-          extensions: dom, curl, libxml, mbstring, zip, sqlite3, xdebug
-          coverage: xdebug
-          ini-values: xdebug.mode=coverage
+          coverage: "true"
+          flux-username: ${{ secrets.FLUX_USERNAME }}
+          flux-license-key: ${{ secrets.FLUX_LICENSE_KEY }}
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: "npm"
+      - name: Setup Node.js and NPM
+        uses: ./.github/actions/setup-node
 
-      - name: Cache Composer Dependencies
-        uses: actions/cache@v3
-        with:
-          path: vendor
-          key: ${{ runner.os }}-php-8.4-composer-${{ hashFiles('**/composer.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-php-8.4-composer-
-
-      - name: Add Flux Credentials Loaded From ENV
-        run: composer config http-basic.composer.fluxui.dev "${{ secrets.FLUX_USERNAME }}" "${{ secrets.FLUX_LICENSE_KEY }}"
-
-      - name: Install Composer Dependencies
-        run: composer install --prefer-dist --no-interaction --no-progress
-
-      - name: Copy Environment File
-        run: cp .env.example .env
-
-      - name: Generate Application Key
-        run: php artisan key:generate
-
-      - name: Cache Node Dependencies
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
-      - name: Install Node Dependencies
-        run: npm ci --audit false
-
-      - name: Build Assets
+      - name: Build frontend
         run: npm run build
 
-      - name: Execute Tests With Coverage
+      - name: Execute tests with coverage
         run: vendor/bin/pest --parallel --coverage --coverage-text --min=80

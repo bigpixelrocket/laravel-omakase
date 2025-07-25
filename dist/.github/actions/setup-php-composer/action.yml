@@ -1,0 +1,51 @@
+name: "Setup PHP and Composer"
+description: "Sets up PHP with all required extensions and installs Composer dependencies with caching"
+
+inputs:
+  php-version:
+    description: "PHP version to setup"
+    required: false
+    default: "8.4"
+  coverage:
+    description: "Enable xdebug for coverage collection"
+    required: false
+    default: "false"
+  flux-username:
+    description: "Flux UI username"
+    required: true
+  flux-license-key:
+    description: "Flux UI license key"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ inputs.php-version }}
+        extensions: dom, curl, libxml, mbstring, zip, sqlite3, json${{ inputs.coverage == 'true' && ', xdebug' || '' }}
+        coverage: ${{ inputs.coverage == 'true' && 'xdebug' || 'none' }}
+
+    - name: Add Flux Credentials
+      shell: bash
+      run: composer config http-basic.composer.fluxui.dev "${{ inputs.flux-username }}" "${{ inputs.flux-license-key }}"
+
+    - name: Get Composer Cache Directory
+      id: composer-cache
+      shell: bash
+      run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+    - name: Cache Composer dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          vendor
+          ${{ steps.composer-cache.outputs.dir }}
+        key: ${{ runner.os }}-php-${{ inputs.php-version }}-composer-${{ hashFiles('**/composer.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-php-${{ inputs.php-version }}-composer-
+
+    - name: Install Composer dependencies
+      shell: bash
+      run: composer install --prefer-dist --no-interaction --no-progress
