@@ -7,7 +7,11 @@ return [
                 ['php', 'artisan', 'livewire:publish', '--config'],
             ],
         ],
-        'livewire/flux',
+        'livewire/flux' => [
+            'optional_commands' => [
+                ['php', 'artisan', 'flux:activate'],
+            ],
+        ],
         'spatie/laravel-data' => [
             'commands' => [
                 ['php', 'artisan', 'vendor:publish', '--provider=Spatie\LaravelData\LaravelDataServiceProvider', '--tag=data-config'],
