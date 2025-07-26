@@ -10,10 +10,10 @@ You are building a Laravel package called "Laravel Omakase". This package helps 
 ## General Structure
 
 - **composer.json** registers the service provider so Laravel can auto-load it
-- **dist/** contains the different predefined configuration files (e.g. `phpstan.neon`, `pint.json`, GitHub Actions, etc.) that can be copied into a Laravel project
-- **src/Commands/OmakaseCommand.php** is the main entry point: it exposes several options and orchestrates installation of Composer and NPM packages and copies files from the `dist/` directory
-- **src/OmakaseServiceProvider.php** registers the console command
-- **tests/** contains Pest tests with Testbench to verify command behaviour
+- **dist/** contains predefined configuration files (e.g. `phpstan.neon`, `pint.json`, GitHub Actions, etc.) that can be copied into Laravel projects
+- **src/Commands/** contains console commands that expose options and orchestrate installation of Composer and NPM packages and copy files from the `dist/` directory
+- **src/ServiceProvider.php** registers the console commands
+- **tests/** contains Pest tests with Testbench to verify command behavior
 
 ## Development Principles
 
@@ -36,7 +36,7 @@ You always think about problems and solutions carefully, step by step and you al
 
 **Context7**
 
-Use the Context7 MCP for documentation about version-specific syntaxt, features and APIs.
+Use the Context7 MCP for documentation about version-specific syntax, features, and APIs.
 
 ### PHP/Laravel Standards
 
@@ -83,6 +83,20 @@ Use the Context7 MCP for documentation about version-specific syntaxt, features 
 - Use Laravel's built-in authentication and authorization features
 - Utilize `spatie/laravel-permission` for role-based authorization
 
+#### Package Development Specifics
+
+**Service Provider Registration**
+
+- Register commands, config files, and assets properly
+- Use proper package discovery in composer.json
+- Handle config publishing and merging
+
+**Testbench Integration**
+
+- Always test commands with Orchestra Testbench
+- Mock external processes and file operations
+- Test different Laravel versions compatibility
+
 #### Error Handling & User Experience
 
 **Command Error Handling**
@@ -118,20 +132,6 @@ Use the Context7 MCP for documentation about version-specific syntaxt, features 
 - Set appropriate timeouts
 - Capture and handle both stdout and stderr
 
-#### Package Development Specifics
-
-**Service Provider Registration**
-
-- Register commands, config files, and assets properly
-- Use proper package discovery in composer.json
-- Handle config publishing and merging
-
-**Testbench Integration**
-
-- Always test commands with Orchestra Testbench
-- Mock external processes and file operations
-- Test different Laravel versions compatibility
-
 #### Performance & Security
 
 **Process Optimization**
@@ -163,24 +163,298 @@ Use the Context7 MCP for documentation about version-specific syntaxt, features 
 
 ### Testing
 
-**Testing Framework & Approach**
+**CRITICAL TESTING PHILOSOPHY**
 
-- Always read and follow the `TESTING.md` guide closely
-- Use the Pest Framework exclusively for unit and feature tests
-- Always write new tests or modify existing tests for any new or updated code
-- Tests rely on Testbench to boot a minimal Laravel application so the package can run in isolation
+> "A test that never fails is not a test, it's a lie." - Every test MUST fail when the code it tests is broken.
+
+**Framework & Requirements**
+
+- Use Pest Framework exclusively for unit and feature tests
+- Always write/modify tests for any new or updated code
+- Tests use Testbench to boot minimal Laravel application in isolation
+- Maintain 80%+ code coverage with efficient test distribution
+
+**FORBIDDEN Weak Test Patterns (Auto-Reject)**
+
+```php
+// ❌ WEAK - Type-only assertions (meaningless)
+expect($user->company)->toBeInstanceOf(Company::class);
+
+// ❌ WEAK - Generic array assertions (no value)
+expect($response)->toBeArray();
+
+// ❌ WEAK - Not-null assertions (tells us nothing)
+expect($property->address)->not->toBeNull();
+
+// ❌ WEAK - Boolean without context (what behavior?)
+expect($result)->toBeTrue();
+
+// ❌ WEAK - Testing framework code
+expect($user->posts())->toBeInstanceOf(HasMany::class);
+
+// ❌ WEAK - Over-mocking what you're testing
+$service = Mockery::mock(OrderService::class)->makePartial();
+```
+
+**REQUIRED Strong Test Patterns**
+
+```php
+// ✅ STRONG - Test specific values and behavior
+expect($user->company->id)->toBe($expectedCompany->id)
+    ->and($user->company->name)->toBe('Expected Company');
+
+// ✅ STRONG - Test structure and content
+expect($response)->toBeArray()->toHaveCount(3)->toHaveKeys(['id', 'name', 'status'])
+    ->and($response['status'])->toBe('active');
+
+// ✅ STRONG - Test behavior with context
+$user = User::factory()->create(['email_verified_at' => null]);
+$user->markEmailAsVerified();
+expect($user->hasVerifiedEmail())->toBeTrue()
+    ->and($user->email_verified_at)->toBeInstanceOf(Carbon::class);
+
+// ✅ STRONG - Test edge cases and errors
+$result = $handler->processData([]);
+expect($result)->toBe([]);
+expect(fn() => $handler->processData(null))
+    ->toThrow(InvalidArgumentException::class, 'Data cannot be null');
+
+// ✅ STRONG - Test both directions of relationships
+expect($user->team->id)->toBe($team->id);
+$team->load('users');
+expect($team->users->pluck('id'))->toContain($user->id);
+```
+
+**Pest Framework Features (MANDATORY Usage)**
+
+```php
+// Use describe() blocks for organization
+describe('Console Command', function () {
+    beforeEach(function () {
+        Process::fake();
+        // Setup test data
+    });
+
+    describe('package installation', function () {
+        it('installs packages when --composer flag is set', function () {
+            // Test implementation
+        });
+    });
+});
+
+// Use higher-order expectations (chain properties/methods)
+expect($user)->name->toBe('John')->email->toContain('@example.com')->isAdmin()->toBeTrue();
+
+// Use datasets instead of duplicate tests
+it('validates emails', function (string $email, bool $expected) {
+    expect(Validator::isEmail($email))->toBe($expected);
+})->with([
+    'valid gmail' => ['test@gmail.com', true],
+    'invalid format' => ['invalid.email', false],
+    'subdomain' => ['test@sub.domain.com', true],
+]);
+
+// Use hooks for setup/cleanup
+it('processes files')->before(function () {
+    Storage::fake('local');
+})->after(function () {
+    Storage::disk('local')->deleteDirectory('test');
+});
+```
+
+**Laravel Testing Requirements**
+
+```php
+// HTTP Testing
+$response = $this->actingAs($user)->postJson('/api/posts', $data);
+$response->assertCreated()->assertJson(['data' => ['title' => 'Expected']]);
+
+// Database Testing
+$this->assertDatabaseHas('users', ['email' => 'test@example.com']);
+$this->assertDatabaseCount('posts', 3);
+
+// Facade Mocking (ONLY external dependencies)
+Process::fake(['ls *' => Process::result('file1.txt file2.txt')]);
+Http::fake(['api.example.com/*' => Http::response(['status' => 'ok'])]);
+Storage::fake('local');
+Mail::fake();
+Queue::fake();
+
+// Time Manipulation
+$this->travel(30)->minutes();
+$this->freezeTime();
+expect($token->isExpired())->toBeTrue();
+
+// Command Testing
+$this->artisan('import:data')
+    ->expectsQuestion('Which source?', 'api')
+    ->expectsOutput('Starting import...')
+    ->expectsTable(['ID', 'Status'], [[1, 'Success']])
+    ->assertSuccessful();
+```
+
+**Test Data Generation**
+
+```php
+// ✅ CORRECT - Use fake() helper in Pest
+$user = User::factory()->create([
+    'name' => fake()->name(),
+    'email' => fake()->unique()->safeEmail(),
+]);
+
+// ❌ INCORRECT - Never use $this->faker in Pest
+$name = $this->faker->name(); // This doesn't work
+```
+
+**Mocking Best Practices**
+
+```php
+// ✅ GOOD - Mock external dependencies only
+$mock = $this->mock(PaymentGateway::class, function ($mock) {
+    $mock->shouldReceive('charge')->once()->with(100, 'USD')
+         ->andReturn(new PaymentResult(true));
+});
+
+// ✅ GOOD - Use spy for post-execution assertions
+$spy = $this->spy(Logger::class);
+// ... execute code ...
+$spy->shouldHaveReceived('log')->once()->with('Payment processed');
+
+// ❌ BAD - Don't mock what you're testing
+$command = Mockery::mock(ConsoleCommand::class)->makePartial();
+```
+
+**Quick Quality Check (4 Questions)**
+
+Before completing any test, ask:
+
+1. **"Does this test specific values or just types/existence?"**
+
+   - ❌ `toBeInstanceOf()`, `toBeArray()`, `not->toBeNull()`
+   - ✅ `toBe('specific value')`, `toHaveCount(3)`, `toContain('expected')`
+
+2. **"Am I testing my code or the framework?"**
+
+   - ❌ Testing Laravel relationships, validation rules
+   - ✅ Testing business logic that uses the framework
+
+3. **"Would this test catch a real bug?"**
+
+   - ❌ Passes even when logic is broken
+   - ✅ Fails immediately when behavior changes
+
+4. **"Are edge cases and errors covered?"**
+   - ❌ Only happy path tested
+   - ✅ Empty data, null values, invalid input tested
+
+**Auto-Reject Patterns**
+
+```php
+// If you see ANY of these, the test needs rewriting:
+expect($anything)->toBeInstanceOf(SomeClass::class);          // Type-only
+expect($anything)->toBeArray();                               // Generic
+expect($anything)->not->toBeNull();                           // Meaningless
+expect($anything)->toBeTrue();                                // No context
+expect($model->relation())->toBeInstanceOf(HasMany::class);   // Framework
+```
+
+**Test Optimization Guidelines**
+
+Before writing or refactoring tests, use this comprehensive checklist to ensure efficient, maintainable test suites:
+
+**1. Redundancy Analysis**
+
+- [ ] **Are we testing the same code paths multiple times?**
+  - Look for tests that exercise identical business logic with only superficial differences
+  - Identify overlapping test scenarios that could be consolidated
+  - Check if multiple tests are hitting the same methods/classes with trivial variations
+- [ ] **Do multiple tests exercise identical business logic with trivial variations?**
+  - Consolidate tests that differ only in input values or minor setup
+  - Use parametric tests or data providers for value variations
+  - Combine related error scenarios into comprehensive error handling tests
+
+**2. Test Granularity**
+
+- [ ] **Are we testing at the right level (unit vs integration vs feature)?**
+  - Unit tests for pure business logic and isolated method behavior
+  - Integration tests for component interactions and external dependencies
+  - Feature tests for end-to-end user workflows and command behavior
+- [ ] **Can integration tests cover multiple unit test scenarios more efficiently?**
+  - Consider if a single feature test can replace multiple unit tests
+  - Balance test isolation with efficiency gains
+  - Prefer comprehensive integration tests over numerous micro-tests
+
+**3. Essential vs. Nice-to-Have**
+
+- [ ] **Which tests are critical for preventing regressions?**
+  - Core functionality and main user workflows (essential)
+  - Error handling for common failure scenarios (essential)
+  - Edge cases and exotic scenarios (nice-to-have)
+- [ ] **Which tests are mainly adding coverage padding?**
+  - Tests for getter/setter methods with no logic (padding)
+  - Multiple tests for identical error conditions (padding)
+  - Tests for framework behavior rather than application logic (padding)
+
+**4. Test Value Assessment**
+
+- [ ] **"Does this test teach us something new about the system?"**
+  - Each test should verify unique behavior or expose different failure modes
+  - Avoid tests that merely exercise code without asserting meaningful outcomes
+- [ ] **"Would removing this test leave a critical gap in our safety net?"**
+  - Focus on tests that catch real bugs and prevent regressions
+  - Eliminate tests that duplicate coverage without adding protection
+- [ ] **"Can this scenario be covered by a more comprehensive integration test?"**
+  - Consider replacing multiple small tests with one thorough test
+  - Balance test specificity with maintenance overhead
+
+**5. Implementation Quality**
+
+- [ ] **"Is this testing behavior or implementation details?"**
+  - Test public interfaces and observable behavior
+  - Avoid testing private methods, internal state, or framework internals
+  - Focus on "what" the system does, not "how" it does it
+- [ ] **"Would this test help us debug a real production issue?"**
+  - Ensure test failures provide clear, actionable debugging information
+  - Write tests that isolate problems and point to specific solutions
+- [ ] **"Are test names and descriptions helping or hindering maintenance?"**
+  - Use descriptive test names that explain the scenario being tested
+  - Include context about why the test exists and what it prevents
+
+**6. Coverage Efficiency**
+
+- [ ] **Can we maintain high coverage (80%+) with fewer tests?**
+  - Target efficient coverage through strategic test placement
+  - Use coverage reports to identify under-tested critical paths
+  - Avoid coverage-driven development that produces low-value tests
+- [ ] **Which code paths are currently over-tested vs. under-tested?**
+  - Identify areas with redundant test coverage
+  - Find critical paths lacking adequate test protection
+  - Balance test distribution across the codebase
+
+**Test Consolidation Strategies**
+
+- **Combine related scenarios**: Group similar test cases into comprehensive tests
+- **Use helper functions**: Extract common setup and assertions into reusable helpers
+- **Parametric testing**: Use data providers for tests that differ only in input values
+- **Integration over isolation**: Prefer fewer, broader tests over many narrow tests
+- **Error grouping**: Combine related error scenarios into comprehensive error handling tests
+
+**Quality Gates (All Must Pass)**
+
+- 80%+ code coverage with efficient test distribution
+- No weak assertion patterns (type-only, not-null, generic arrays)
+- All external dependencies mocked with Laravel fakes
+- Test names describe behavior, not implementation
+- Edge cases and error conditions covered
 
 **Code Quality & Standards**
 
 - Enforce code style with Laravel Pint (configured in `pint.json`)
 - Use PHPStan for static analysis (configured in `phpstan.neon`)
 
-**Pre-commit Checks**
+### Pre-commit Checks
 
 Run the following checks before committing anything:
-
-**Pre-commit Workflow**
-Run these commands in sequence before committing:
 
 ```bash
 # 1. Fix code style issues first with Rector and Pint
@@ -192,9 +466,6 @@ vendor/bin/phpstan analyse
 
 # 3. Verify tests still pass (with coverage)
 vendor/bin/pest --parallel --coverage --coverage-text --min=80
-
-# 4. Make sure you read and followed the testing guide closely
-cat TESTING.md
 ```
 
 **Commit Standards**
