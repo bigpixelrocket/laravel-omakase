@@ -12,7 +12,7 @@ You always think about problems and solutions carefully, step by step and you al
 2. Formulate a detailed implementation plan using syntax and features appropriate for the installed versions
 3. Review and improve the implementation plan ensuring version compatibility
 4. Implement using version-specific syntax and features
-5. Test
+5. Test, test, test!
 
 **Version Awareness**
 
@@ -411,17 +411,14 @@ $command = Mockery::mock(ConsoleCommand::class)->makePartial();
 Before completing any test, ask:
 
 1. **"Does this test specific values or just types/existence?"**
-
    - ❌ `toBeInstanceOf()`, `toBeArray()`, `not->toBeNull()`
    - ✅ `toBe('specific value')`, `toHaveCount(3)`, `toContain('expected')`
 
 2. **"Am I testing my code or the framework?"**
-
    - ❌ Testing Laravel relationships, validation rules
    - ✅ Testing business logic that uses the framework
 
 3. **"Would this test catch a real bug?"**
-
    - ❌ Passes even when logic is broken
    - ✅ Fails immediately when behavior changes
 
@@ -521,13 +518,162 @@ Before writing or refactoring tests, use this comprehensive checklist to ensure 
 - **Integration over isolation**: Prefer fewer, broader tests over many narrow tests
 - **Error grouping**: Combine related error scenarios into comprehensive error handling tests
 
+**Command Interface Evolution Patterns**
+
+When Laravel commands evolve from interactive to automatic behavior:
+
+```php
+// ✅ GOOD - Test mode-aware commands properly
+describe('command modes', function () {
+    it('supports interactive mode', function () {
+        $this->artisan('my:command', ['--option' => true])
+            ->expectsChoice('Select options', ['option1'], ['option1', 'option2'])
+            ->assertSuccessful();
+    });
+
+    it('supports batch mode with --force', function () {
+        $this->artisan('my:command', ['--option' => true, '--force' => true])
+            ->expectsOutputToContain('Executing all options automatically')
+            ->assertSuccessful();
+    });
+
+    it('auto-executes in test environment', function () {
+        // Test app()->runningUnitTests() behavior
+        $this->artisan('my:command', ['--option' => true])
+            ->expectsOutputToContain('Executing automatically in test environment')
+            ->assertSuccessful();
+    });
+});
+
+// ❌ BAD - Tightly coupled to interactive prompts
+$this->artisan('my:command', ['--option' => true])
+    ->expectsConfirmation('Do you want to continue?', 'yes')
+```
+
+**Execution Order Testing**
+
+Test logical phases, not exact sequences (useful for jobs, commands, events):
+
+```php
+// ✅ GOOD - Phase-based testing (resilient to implementation changes)
+$phases = [];
+$currentPhase = '';
+foreach ($executionOrder as $item) {
+    if (str_contains($item, 'setup') && $currentPhase !== 'setup') {
+        $phases[] = 'setup';
+        $currentPhase = 'setup';
+    } elseif (str_contains($item, 'process') && $currentPhase !== 'process') {
+        $phases[] = 'process';
+        $currentPhase = 'process';
+    }
+}
+expect($phases)->toEqual(['setup', 'process', 'cleanup']);
+
+// ❌ BAD - Brittle exact sequence testing
+expect($executionOrder)->toEqual(['item1', 'item2', 'item3', 'item4']);
+```
+
+**Helper Function Design for Evolution**
+
+Design test helpers that support interface changes:
+
+```php
+// ✅ GOOD - Evolution-friendly helpers
+function runJob(string $jobClass, array $data = []): void;
+function expectEventDispatched(string $eventClass): void;
+function expectMailSent(string $mailable): void;
+
+// ❌ BAD - Tightly coupled helpers
+function runJobWithSpecificDatabase(string $connection = 'mysql');
+function expectExactEventData(array $data); // Too specific
+```
+
+**Complex Process & External Service Mocking**
+
+Structure complex mocks with clear conditional logic:
+
+```php
+// ✅ GOOD - Structured conditional mocking
+Http::fake([
+    '*' => function (Request $request) use (&$requestLog) {
+        $requestLog[] = $request->url();
+
+        return match (true) {
+            str_contains($request->url(), '/api/users') => Http::response(['users' => []], 200),
+            str_contains($request->url(), '/api/orders') => Http::response(['orders' => []], 200),
+            str_contains($request->url(), '/api/payments') => Http::response(['error' => 'Failed'], 500),
+            default => Http::response([], 404),
+        };
+    },
+]);
+
+// ❌ BAD - Monolithic or unclear mocking
+Http::fake(['*' => Http::response([], 200)]); // Too generic
+```
+
+**Laravel-Specific Testing Patterns**
+
+```php
+// Test Livewire component evolution
+it('supports both legacy and new component interfaces', function () {
+    // Test old property binding
+    Livewire::test(UserProfile::class, ['userId' => 1])
+        ->assertSet('user.name', 'John Doe');
+
+    // Test new computed property approach
+    Livewire::test(UserProfile::class, ['userId' => 1])
+        ->assertSee('John Doe');
+});
+
+// Test job queue interactions
+it('processes jobs in correct order', function () {
+    Queue::fake();
+
+    dispatch(new ProcessOrder($order));
+    dispatch(new SendNotification($order));
+
+    Queue::assertPushedInOrder([
+        ProcessOrder::class,
+        SendNotification::class,
+    ]);
+});
+
+// Test event-driven flows
+it('triggers cascade of events', function () {
+    Event::fake();
+
+    $user = User::create($userData);
+
+    Event::assertDispatchedTimes([
+        UserRegistered::class => 1,
+        WelcomeEmailQueued::class => 1,
+        UserStatsUpdated::class => 1,
+    ]);
+});
+```
+
+**Large Test Suite Migration Strategy**
+
+When updating test suites for interface changes:
+
+1. **Configuration First** - Update test data and configurations
+2. **Helpers Second** - Update utility functions and mocks
+3. **Core Tests Third** - Update main functionality tests
+4. **New Features Fourth** - Add tests for new functionality
+5. **Edge Cases Fifth** - Update error handling and edge cases
+6. **Optimization Last** - Performance tuning and cleanup
+
 **Quality Gates (All Must Pass)**
 
 - 80%+ code coverage with efficient test distribution
+- Each individual test has to finish in under < 3s
 - No weak assertion patterns (type-only, not-null, generic arrays)
 - All external dependencies mocked with Laravel fakes
 - Test names describe behavior, not implementation
 - Edge cases and error conditions covered
+- **Tests are resilient to implementation changes** (test behavior, not internals)
+- **Helper functions support evolution** (loosely coupled, single responsibility)
+- **Complex scenarios use structured mocking** (clear conditional logic)
 
 **Code Quality & Standards**
 

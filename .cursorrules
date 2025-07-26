@@ -25,7 +25,7 @@ You always think about problems and solutions carefully, step by step and you al
 2. Formulate a detailed implementation plan using syntax and features appropriate for the installed versions
 3. Review and improve the implementation plan ensuring version compatibility
 4. Implement using version-specific syntax and features
-5. Test
+5. Test, test, test!
 
 **Version Awareness**
 
@@ -329,17 +329,14 @@ $command = Mockery::mock(ConsoleCommand::class)->makePartial();
 Before completing any test, ask:
 
 1. **"Does this test specific values or just types/existence?"**
-
    - ❌ `toBeInstanceOf()`, `toBeArray()`, `not->toBeNull()`
    - ✅ `toBe('specific value')`, `toHaveCount(3)`, `toContain('expected')`
 
 2. **"Am I testing my code or the framework?"**
-
    - ❌ Testing Laravel relationships, validation rules
    - ✅ Testing business logic that uses the framework
 
 3. **"Would this test catch a real bug?"**
-
    - ❌ Passes even when logic is broken
    - ✅ Fails immediately when behavior changes
 
@@ -439,13 +436,136 @@ Before writing or refactoring tests, use this comprehensive checklist to ensure 
 - **Integration over isolation**: Prefer fewer, broader tests over many narrow tests
 - **Error grouping**: Combine related error scenarios into comprehensive error handling tests
 
+**Command Interface Evolution Patterns**
+
+When commands evolve from interactive to automatic behavior:
+
+```php
+// ✅ GOOD - Test mode-aware commands properly
+describe('command modes', function () {
+    it('supports interactive mode', function () {
+        runCommand(['--option' => true])
+            ->expectsChoice('Select options', ['option1'], ['option1', 'option2'])
+            ->assertSuccessful();
+    });
+
+    it('supports batch mode with --force', function () {
+        runCommand(['--option' => true, '--force' => true])
+            ->expectsOutputToContain('Executing all options automatically')
+            ->assertSuccessful();
+    });
+
+    it('auto-executes in test environment', function () {
+        // Test app()->runningUnitTests() behavior
+        runCommand(['--option' => true])
+            ->expectsOutputToContain('Executing automatically in test environment')
+            ->assertSuccessful();
+    });
+});
+
+// ❌ BAD - Tightly coupled to interactive prompts
+runCommand(['--option' => true], [
+    'Do you want to continue?' => 'yes',
+])
+```
+
+**Execution Order Testing**
+
+Test logical phases, not exact command sequences:
+
+```php
+// ✅ GOOD - Phase-based testing (resilient to implementation changes)
+$phases = [];
+$currentPhase = '';
+foreach ($executionOrder as $command) {
+    if (str_contains($command, 'setup') && $currentPhase !== 'setup') {
+        $phases[] = 'setup';
+        $currentPhase = 'setup';
+    } elseif (str_contains($command, 'install') && $currentPhase !== 'install') {
+        $phases[] = 'install';
+        $currentPhase = 'install';
+    }
+}
+expect($phases)->toEqual(['setup', 'install', 'cleanup']);
+
+// ❌ BAD - Brittle exact sequence testing
+expect($executionOrder)->toEqual(['cmd1', 'cmd2', 'cmd3', 'cmd4']);
+```
+
+**Helper Function Design for Evolution**
+
+Design helpers that support interface changes:
+
+```php
+// ✅ GOOD - Evolution-friendly helpers
+function runCommand(array $options): PendingCommand;
+function expectCommandRan(string $commandFragment): void;
+function expectCommandsRanInPhases(array $phases): void;
+
+// ❌ BAD - Tightly coupled helpers
+function runCommandWithConfirmations(array $options, array $confirmations = []);
+function runCommandWithSpecificPrompts(); // Too specific to current interface
+```
+
+**Complex Process Mocking Patterns**
+
+Structure complex mocks with clear conditional logic:
+
+```php
+// ✅ GOOD - Structured conditional mocking
+Process::fake([
+    '*' => function (PendingProcess $process) use (&$executionLog) {
+        $command = extractCommand($process);
+
+        // Log execution for order testing
+        $executionLog[] = categorizeCommand($command);
+
+        // Return appropriate response based on command type
+        return match (true) {
+            str_contains($command, 'composer update') => Process::result('Updated successfully', '', 0),
+            str_contains($command, 'npm install') => Process::result('Installed packages', '', 0),
+            str_contains($command, 'vendor/bin/pint') => Process::result('', 'Style issues found', 1),
+            default => Process::result('', '', 0),
+        };
+    },
+]);
+
+// ❌ BAD - Monolithic or unclear mocking
+Process::fake(['*' => Process::result('', '', 0)]); // Too generic
+```
+
+**Large Test Suite Migration Strategy**
+
+When updating test suites for interface changes:
+
+1. **Configuration First** - Update test data and package configurations
+2. **Helpers Second** - Update utility functions and mocks
+3. **Core Tests Third** - Update main functionality tests
+4. **New Features Fourth** - Add tests for new functionality
+5. **Edge Cases Fifth** - Update error handling and edge cases
+6. **Optimization Last** - Performance tuning and cleanup
+
+```php
+// Example migration approach:
+// 1. Update setTestPackageConfigs() first
+// 2. Update runCommandWithOptions() second
+// 3. Update core functionality tests third
+// 4. Add new behavior tests fourth
+// 5. Update error cases fifth
+// 6. Optimize performance last
+```
+
 **Quality Gates (All Must Pass)**
 
 - 80%+ code coverage with efficient test distribution
+- Each individual test has to finish in under < 3s
 - No weak assertion patterns (type-only, not-null, generic arrays)
 - All external dependencies mocked with Laravel fakes
 - Test names describe behavior, not implementation
 - Edge cases and error conditions covered
+- **Tests are resilient to implementation changes** (test behavior, not internals)
+- **Helper functions support evolution** (loosely coupled, single responsibility)
+- **Complex scenarios use structured mocking** (clear conditional logic)
 
 **Code Quality & Standards**
 
