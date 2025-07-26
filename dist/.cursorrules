@@ -12,7 +12,7 @@ You always think about problems and solutions carefully, step by step and you al
 2. Formulate a detailed implementation plan using syntax and features appropriate for the installed versions
 3. Review and improve the implementation plan ensuring version compatibility
 4. Implement using version-specific syntax and features
-5. Test
+5. Test, test, test!
 
 **Version Awareness**
 
@@ -524,6 +524,7 @@ Before writing or refactoring tests, use this comprehensive checklist to ensure 
 **Quality Gates (All Must Pass)**
 
 - 80%+ code coverage with efficient test distribution
+- Each individual test has to finish in under < 3s
 - No weak assertion patterns (type-only, not-null, generic arrays)
 - All external dependencies mocked with Laravel fakes
 - Test names describe behavior, not implementation
