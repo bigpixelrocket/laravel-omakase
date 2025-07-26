@@ -27,5 +27,8 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Generate APP_KEY
+        run: php artisan key:generate --env=testing --force
+
       - name: Execute tests with coverage
         run: vendor/bin/pest --parallel --coverage --coverage-text --min=80
