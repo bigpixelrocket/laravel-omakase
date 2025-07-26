@@ -8,7 +8,7 @@ return [
             ],
         ],
         'livewire/flux' => [
-            'optional_commands' => [
+            'post_dist_commands' => [
                 ['php', 'artisan', 'flux:activate'],
             ],
         ],
@@ -44,22 +44,22 @@ return [
         'beyondcode/laravel-query-detector' => [
         ],
         'rector/rector' => [
-            'optional_commands' => [
+            'post_dist_commands' => [
                 ['vendor/bin/rector'],
             ],
         ],
         'laravel/pint' => [
-            'optional_commands' => [
+            'post_dist_commands' => [
                 ['vendor/bin/pint', '--repair'],
             ],
         ],
         'larastan/larastan' => [
-            'optional_commands' => [
+            'post_dist_commands' => [
                 ['vendor/bin/phpstan', 'analyse'],
             ],
         ],
         'pestphp/pest' => [
-            'commands' => [
+            'post_dist_commands' => [
                 ['php', 'artisan', 'key:generate', '--env=testing', '--force'],
             ],
         ],
