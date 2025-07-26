@@ -7,6 +7,7 @@ namespace Bigpixelrocket\LaravelOmakase\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 //
 // Omakase Command - Laravel Package Installation & Configuration
@@ -32,32 +33,24 @@ class OmakaseCommand extends Command
     protected $description = 'An opinionated menu for your next Laravel project';
 
     //
+    // Post-Distribution Commands Collection
+    // -------------------------------------------------------------------------------
+
+    /** @var array<array<string>> */
+    protected array $postDistCommands = [];
+
+    //
     // Main Entry Point
     // -------------------------------------------------------------------------------
 
     public function handle(): int
     {
-        $runFiles = $this->option('files');
         $runComposer = $this->option('composer');
         $runNpm = $this->option('npm');
+        $runFiles = $this->option('files');
 
         // If no specific options are provided, run everything
         $runAll = ! $runFiles && ! $runComposer && ! $runNpm;
-
-        //
-        // File Operations
-
-        if ($runAll || $runFiles) {
-            $this->newLine();
-            $this->line('╔═══════════════════════════════════════════╗');
-            $this->line('║              Copying files                ║');
-            $this->line('╚═══════════════════════════════════════════╝');
-            $this->newLine();
-
-            if (! $this->copyFiles()) {
-                return self::FAILURE;
-            }
-        }
 
         //
         // Composer Package Installation
@@ -69,14 +62,12 @@ class OmakaseCommand extends Command
             $this->line('╚═══════════════════════════════════════════╝');
             $this->newLine();
 
-            // Ask if user wants to update existing packages first
-            if ($this->option('force') || $this->confirm('Do you want to update existing Composer packages first?', false)) {
-                $this->warn('composer update');
-                if (! $this->exec(['composer', 'update'])) {
-                    return self::FAILURE;
-                }
-                $this->newLine();
+            // Update existing packages first
+            $this->warn('composer update');
+            if (! $this->exec(['composer', 'update'])) {
+                return self::FAILURE;
             }
+            $this->newLine();
 
             $composerPackages = config('laravel-omakase.composer-packages');
 
@@ -102,14 +93,12 @@ class OmakaseCommand extends Command
             $this->line('╚═══════════════════════════════════════════╝');
             $this->newLine();
 
-            // Ask if user wants to update existing packages first
-            if ($this->option('force') || $this->confirm('Do you want to update existing NPM packages first?', false)) {
-                $this->warn('npm update');
-                if (! $this->exec(['npm', 'update'])) {
-                    return self::FAILURE;
-                }
-                $this->newLine();
+            // Update existing packages first
+            $this->warn('npm update');
+            if (! $this->exec(['npm', 'update'])) {
+                return self::FAILURE;
             }
+            $this->newLine();
 
             $npmPackages = config('laravel-omakase.npm-packages');
 
@@ -123,6 +112,34 @@ class OmakaseCommand extends Command
             if (! $this->installPackages($npmPackages, ['npm', 'install'], 'devDependencies', '--save-dev')) {
                 return self::FAILURE;
             }
+        }
+
+        //
+        // File Operations
+
+        if ($runAll || $runFiles) {
+            $this->newLine();
+            $this->line('╔═══════════════════════════════════════════╗');
+            $this->line('║              Copying files                ║');
+            $this->line('╚═══════════════════════════════════════════╝');
+            $this->newLine();
+
+            if (! $this->copyFiles()) {
+                return self::FAILURE;
+            }
+        }
+
+        //
+        // Post-Distribution Commands
+
+        if (! empty($this->postDistCommands)) {
+            $this->newLine();
+            $this->line('╔═══════════════════════════════════════════╗');
+            $this->line('║        Run the following commands?        ║');
+            $this->line('╚═══════════════════════════════════════════╝');
+            $this->newLine();
+
+            $this->execPostDistCommands($this->postDistCommands);
         }
 
         return self::SUCCESS;
@@ -142,7 +159,6 @@ class OmakaseCommand extends Command
     {
         foreach ($packages as $type => $typePackages) {
             $commands = [];
-            $optionalCommands = [];
             $packageNames = [];
 
             //
@@ -157,8 +173,8 @@ class OmakaseCommand extends Command
                     if (isset($v['commands'])) {
                         $commands = [...$commands, ...$v['commands']];
                     }
-                    if (isset($v['optional_commands'])) {
-                        $optionalCommands = [...$optionalCommands, ...$v['optional_commands']];
+                    if (isset($v['post_dist_commands'])) {
+                        $this->postDistCommands = [...$this->postDistCommands, ...$v['post_dist_commands']];
                     }
                 }
             }
@@ -186,26 +202,17 @@ class OmakaseCommand extends Command
                     $packageName = (string) $k;
                     $composerConfig = $v['composer'];
 
-                    // Generate dynamic confirmation message based on what sections are being updated
+                    // Add configuration to composer.json
                     $sections = array_keys($composerConfig);
                     $sectionNames = implode(', ', $sections);
-                    $confirmMessage = "Add {$packageName} configuration to composer.json ({$sectionNames})?";
+                    $this->comment("Adding {$packageName} configuration to composer.json ({$sectionNames})...");
 
-                    if ($this->confirm($confirmMessage, true)) {
-                        if (! $this->updateComposerJson($composerConfig, $packageName)) {
-                            $this->warn("Failed to update composer.json for {$packageName}, continuing...");
-                        }
+                    if (! $this->updateComposerJson($composerConfig, $packageName)) {
+                        $this->warn("Failed to update composer.json for {$packageName}, continuing...");
                     }
                 }
             }
 
-            //
-            // Optional Commands
-
-            // Execute optional commands that don't fail the installation
-            if (! empty($optionalCommands)) {
-                $this->execOptionalCommands($optionalCommands);
-            }
         }
 
         return true;
@@ -233,17 +240,66 @@ class OmakaseCommand extends Command
     }
 
     /**
-     * Execute optional commands that don't fail the installation
+     * Execute post-distribution commands that don't fail the installation
      *
      * @param  array<array<string>>  $commands
      */
-    protected function execOptionalCommands(array $commands): void
+    protected function execPostDistCommands(array $commands): void
     {
-        foreach ($commands as $command) {
-            $this->warn(implode(' ', $command));
-            if (! $this->exec($command, optional: true)) {
-                $this->comment('Optional command failed but continuing installation...');
+        if (empty($commands)) {
+            return;
+        }
+
+        // Skip prompt if --force flag is used or running tests
+        if ($this->option('force') || app()->runningUnitTests()) {
+            $message = $this->option('force')
+                ? 'Executing all post-dist commands (--force)...'
+                : 'Executing all post-dist commands...';
+            $this->comment($message);
+            foreach ($commands as $command) {
+                $this->warn(implode(' ', $command));
+                if (! $this->exec($command, optional: true)) {
+                    $this->comment('Post-dist command failed but continuing...');
+                }
             }
+
+            return;
+        }
+
+        // Create user-friendly command descriptions for choices
+        $choices = array_map(fn ($command) => implode(' ', $command), $commands);
+
+        // Create SymfonyStyle instance for choice selection
+        $io = new SymfonyStyle($this->input, $this->output);
+
+        try {
+            // Present choices with all commands selected by default
+            // For multiselect, default should be comma-separated string of indices
+            $defaultSelection = implode(',', array_keys($choices));
+
+            $selectedChoices = $io->choice(
+                'Select commands to run (defaults to all)',
+                $choices,
+                $defaultSelection,
+                multiSelect: true
+            );
+
+            // Execute only the selected commands
+            // Ensure $selectedChoices is an array for PHPStan
+            $selectedChoices = (array) $selectedChoices;
+            foreach ($selectedChoices as $selectedChoice) {
+                // Find the command array by matching the choice string
+                $commandIndex = array_search($selectedChoice, $choices);
+                if ($commandIndex !== false) {
+                    $command = $commands[$commandIndex];
+                    $this->warn(implode(' ', $command));
+                    if (! $this->exec($command, optional: true)) {
+                        $this->comment('Post-dist command failed but continuing...');
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            $this->comment('Error during command selection, skipping post-dist commands: '.$e->getMessage());
         }
     }
 

@@ -152,17 +152,17 @@ function setTestPackageConfigs(): void
                 ],
             ],
             'rector/rector' => [
-                'optional_commands' => [
+                'post_dist_commands' => [
                     ['vendor/bin/rector'],
                 ],
             ],
             'laravel/pint' => [
-                'optional_commands' => [
+                'post_dist_commands' => [
                     ['vendor/bin/pint', '--repair'],
                 ],
             ],
             'larastan/larastan' => [
-                'optional_commands' => [
+                'post_dist_commands' => [
                     ['vendor/bin/phpstan', 'analyse'],
                 ],
             ],
@@ -172,7 +172,14 @@ function setTestPackageConfigs(): void
     ]);
 
     Config::set('laravel-omakase.npm-packages', [
-        'dependencies' => ['tailwindcss', '@tailwindcss/vite'],
+        'dependencies' => [
+            'tailwindcss',
+            '@tailwindcss/vite' => [
+                'post_dist_commands' => [
+                    ['npx', 'tailwindcss', 'init'],
+                ],
+            ],
+        ],
         'devDependencies' => ['prettier', 'prettier-plugin-blade'],
     ]);
 }
@@ -212,10 +219,7 @@ describe('OmakaseCommand', function (): void {
 
     describe('command execution with options', function (): void {
         it('installs packages and copies files by default', function (): void {
-            runOmakaseWithOptions(['--skip-composer-json' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
-                'Do you want to update existing NPM packages first?' => 'no',
-            ])
+            runOmakaseWithOptions(['--skip-composer-json' => true], [])
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->expectsOutputToContain('Installing NPM Packages')
                 ->expectsOutputToContain('Copying files')
@@ -226,9 +230,7 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('only installs composer packages with the --composer option', function (): void {
-            runOmakaseWithOptions(['--composer' => true, '--skip-composer-json' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
-            ])
+            runOmakaseWithOptions(['--composer' => true, '--skip-composer-json' => true], [])
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->doesntExpectOutputToContain('Installing NPM Packages')
                 ->doesntExpectOutputToContain('Copying files')
@@ -239,9 +241,7 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('only installs npm packages with the --npm option', function (): void {
-            runOmakaseWithOptions(['--npm' => true], [
-                'Do you want to update existing NPM packages first?' => 'no',
-            ])
+            runOmakaseWithOptions(['--npm' => true], [])
                 ->doesntExpectOutputToContain('Installing Composer Packages')
                 ->expectsOutputToContain('Installing NPM Packages')
                 ->doesntExpectOutputToContain('Copying files')
@@ -263,10 +263,7 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('handles composer + npm combination', function (): void {
-            runOmakaseWithOptions(['--composer' => true, '--npm' => true, '--skip-composer-json' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
-                'Do you want to update existing NPM packages first?' => 'no',
-            ])
+            runOmakaseWithOptions(['--composer' => true, '--npm' => true, '--skip-composer-json' => true], [])
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->expectsOutputToContain('Installing NPM Packages')
                 ->doesntExpectOutputToContain('Copying files')
@@ -292,8 +289,8 @@ describe('OmakaseCommand', function (): void {
         });
 
         it('verifies package installation commands structure', function (): void {
-            runOmakaseWithOptions(['--composer' => true, '--skip-composer-json' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
+            runOmakaseWithOptions(['--skip-composer-json' => true], [
+
             ])->assertSuccessful();
 
             // Verify production packages (without --dev)
@@ -314,7 +311,7 @@ describe('OmakaseCommand', function (): void {
                        str_contains($command, '--dev');
             });
 
-            // Verify post-install commands
+            // Verify post-dist commands (executed after file operations)
             assertCommandsRan(['php artisan livewire:publish', 'vendor/bin/pint --repair']);
         });
 
@@ -400,7 +397,7 @@ describe('OmakaseCommand', function (): void {
         it('handles TTY mode properly in different environments', function (): void {
             // Test that TTY mode is handled correctly based on environment
             runOmakaseWithOptions(['--composer' => true, '--skip-composer-json' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
+
             ])
                 ->assertSuccessful();
 
@@ -410,7 +407,7 @@ describe('OmakaseCommand', function (): void {
         it('handles Windows environment process execution', function (): void {
             // This would test the Windows-specific code path in exec method
             runOmakaseWithOptions(['--npm' => true], [
-                'Do you want to update existing NPM packages first?' => 'no',
+
             ])
                 ->assertSuccessful();
 
@@ -423,14 +420,14 @@ describe('OmakaseCommand', function (): void {
             ]);
 
             runOmakaseWithOptions(['--composer' => true, '--skip-composer-json' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
+
             ])
                 ->assertSuccessful();
 
             assertCommandRan('composer require');
         });
 
-        it('handles optional commands with stderr output', function (): void {
+        it('handles post-dist commands with stderr output', function (): void {
             Process::fake([
                 '*' => function (PendingProcess $process) {
                     $command = extractCommand($process);
@@ -442,10 +439,10 @@ describe('OmakaseCommand', function (): void {
                 },
             ]);
 
-            runOmakaseWithOptions(['--composer' => true, '--skip-composer-json' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
+            runOmakaseWithOptions(['--skip-composer-json' => true], [
+
             ])
-                ->expectsOutputToContain('Optional command failed but continuing installation...')
+                ->expectsOutputToContain('Post-dist command failed but continuing...')
                 ->assertSuccessful();
 
             assertCommandRan('vendor/bin/pint --repair');
@@ -461,15 +458,16 @@ describe('OmakaseCommand', function (): void {
             Process::fake(['*' => Process::result('', 'Package not found', 1)]);
 
             runOmakaseWithOptions(['--composer' => true, '--skip-composer-json' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
+
             ])
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->assertFailed();
 
-            assertCommandRan('composer require');
+            // Should run composer update first and fail, never reaching composer require
+            assertCommandRan('composer update');
         });
 
-        it('handles optional command failures gracefully', function (): void {
+        it('handles post-dist command failures gracefully', function (): void {
             Process::fake([
                 '*' => function (PendingProcess $process) {
                     $command = extractCommand($process);
@@ -485,26 +483,90 @@ describe('OmakaseCommand', function (): void {
                 },
             ]);
 
-            runOmakaseWithOptions(['--composer' => true, '--skip-composer-json' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
+            runOmakaseWithOptions(['--skip-composer-json' => true], [
+
             ])
-                ->expectsOutputToContain('Optional command failed but continuing installation...')
+                ->expectsOutputToContain('Post-dist command failed but continuing...')
                 ->assertSuccessful();
 
             assertCommandRan('composer require');
             assertCommandRan('vendor/bin/pint --repair');
         });
 
+        it('executes post-dist commands after file operations regardless of flags', function (): void {
+            Process::fake();
+
+            runOmakaseWithOptions(['--composer' => true, '--skip-composer-json' => true, '--force' => true], [])
+                ->expectsOutputToContain('Installing Composer Packages')
+                ->expectsOutputToContain('Executing all post-dist commands (--force)')
+                ->assertSuccessful();
+
+            assertCommandRan('composer require');
+            assertCommandRan('vendor/bin/pint --repair');
+        });
+
+        it('executes post-dist commands from npm packages', function (): void {
+            Process::fake();
+
+            runOmakaseWithOptions(['--npm' => true, '--force' => true], [])
+                ->expectsOutputToContain('Installing NPM Packages')
+                ->expectsOutputToContain('Executing all post-dist commands (--force)')
+                ->assertSuccessful();
+
+            assertCommandRan('npm install');
+            assertCommandRan('npx tailwindcss init');
+        });
+
+        it('does not show post-dist commands section when no commands are collected', function (): void {
+            Process::fake();
+
+            runOmakaseWithOptions(['--files' => true], [])
+                ->expectsOutputToContain('Copying files')
+                ->doesntExpectOutputToContain('Executing Post-Dist Commands')
+                ->assertSuccessful();
+
+            // Verify no external commands were run for files-only operation
+            Process::assertNothingRan();
+        });
+
+        it('executes all post-dist commands automatically when running tests', function (): void {
+            Process::fake();
+
+            $this->artisan('laravel:omakase', ['--skip-composer-json' => true])
+                ->expectsOutputToContain('Installing Composer Packages')
+                ->expectsOutputToContain('Installing NPM Packages')
+                ->expectsOutputToContain('Executing all post-dist commands...')
+                ->assertSuccessful();
+
+            assertCommandRan('composer require');
+            assertCommandRan('npm install');
+            assertCommandRan('vendor/bin/pint --repair');
+            assertCommandRan('npx tailwindcss init');
+        });
+
+        it('executes post-dist commands when only npm packages are installed', function (): void {
+            Process::fake();
+
+            $this->artisan('laravel:omakase', ['--npm' => true])
+                ->expectsOutputToContain('Installing NPM Packages')
+                ->expectsOutputToContain('Executing all post-dist commands...')
+                ->assertSuccessful();
+
+            assertCommandRan('npm install');
+            assertCommandRan('npx tailwindcss init');
+        });
+
         it('handles npm installation failure gracefully', function (): void {
             Process::fake(['*' => Process::result('', 'npm package not found', 1)]);
 
             runOmakaseWithOptions(['--npm' => true], [
-                'Do you want to update existing NPM packages first?' => 'no',
+
             ])
                 ->expectsOutputToContain('Installing NPM Packages')
                 ->assertFailed();
 
-            assertCommandRan('npm install');
+            // Should run npm update first and fail, never reaching npm install
+            assertCommandRan('npm update');
         });
 
         it('handles composer update failure gracefully', function (): void {
@@ -520,7 +582,7 @@ describe('OmakaseCommand', function (): void {
             ]);
 
             runOmakaseWithOptions(['--composer' => true, '--skip-composer-json' => true], [
-                'Do you want to update existing Composer packages first?' => 'yes',
+
             ])
                 ->expectsOutputToContain('composer update')
                 ->assertFailed();
@@ -541,7 +603,7 @@ describe('OmakaseCommand', function (): void {
             ]);
 
             runOmakaseWithOptions(['--npm' => true], [
-                'Do you want to update existing NPM packages first?' => 'yes',
+
             ])
                 ->expectsOutputToContain('npm update')
                 ->assertFailed();
@@ -553,7 +615,7 @@ describe('OmakaseCommand', function (): void {
             Config::set('laravel-omakase.composer-packages', 'invalid-string');
 
             runOmakaseWithOptions(['--composer' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
+
             ])
                 ->expectsOutputToContain('Invalid composer packages configuration')
                 ->assertFailed();
@@ -563,7 +625,7 @@ describe('OmakaseCommand', function (): void {
             Config::set('laravel-omakase.npm-packages', 'invalid-string');
 
             runOmakaseWithOptions(['--npm' => true], [
-                'Do you want to update existing NPM packages first?' => 'no',
+
             ])
                 ->expectsOutputToContain('Invalid npm packages configuration')
                 ->assertFailed();
@@ -580,8 +642,7 @@ describe('OmakaseCommand', function (): void {
             mockComposerJsonWrite();
 
             runOmakaseWithOptions(['--composer' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
-                'Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?' => 'yes',
+
             ])
                 ->expectsOutputToContain('Added post-update-cmd scripts to composer.json')
                 ->assertSuccessful();
@@ -608,8 +669,7 @@ describe('OmakaseCommand', function (): void {
             mockComposerJsonWrite();
 
             runOmakaseWithOptions(['--composer' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
-                'Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?' => 'yes',
+
             ])
                 ->expectsOutputToContain('Added 3 new script(s) to post-update-cmd')
                 ->assertSuccessful();
@@ -641,8 +701,7 @@ describe('OmakaseCommand', function (): void {
             ]);
 
             runOmakaseWithOptions(['--composer' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
-                'Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?' => 'yes',
+
             ])
                 ->expectsOutputToContain('All required scripts already exist in post-update-cmd')
                 ->assertSuccessful();
@@ -652,8 +711,7 @@ describe('OmakaseCommand', function (): void {
             mockComposerJson(['name' => 'test/project']);
 
             runOmakaseWithOptions(['--composer' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
-                'Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?' => 'no',
+
             ])
                 ->expectsOutputToContain('Installing Composer Packages')
                 ->assertSuccessful();
@@ -668,8 +726,7 @@ describe('OmakaseCommand', function (): void {
             }
 
             runOmakaseWithOptions(['--composer' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
-                'Add barryvdh/laravel-ide-helper configuration to composer.json (scripts)?' => 'yes',
+
             ])
                 ->expectsOutputToContain($expectedError)
                 ->assertSuccessful(); // Command continues despite errors
@@ -714,8 +771,7 @@ describe('OmakaseCommand', function (): void {
                 mockComposerJsonWrite();
 
                 runOmakaseWithOptions(['--composer' => true], [
-                    'Do you want to update existing Composer packages first?' => 'no',
-                    'Add custom/package configuration to composer.json (repositories)?' => 'yes',
+
                 ])
                     ->expectsOutputToContain('Added repository: https://custom-repo.com')
                     ->assertSuccessful();
@@ -759,8 +815,7 @@ describe('OmakaseCommand', function (): void {
                 ]);
 
                 runOmakaseWithOptions(['--composer' => true], [
-                    'Do you want to update existing Composer packages first?' => 'no',
-                    'Add custom/package configuration to composer.json (repositories)?' => 'yes',
+
                 ])
                     ->expectsOutputToContain('Repository already exists: https://existing-repo.com')
                     ->assertSuccessful();
@@ -786,8 +841,7 @@ describe('OmakaseCommand', function (): void {
                 mockComposerJsonWrite();
 
                 runOmakaseWithOptions(['--composer' => true], [
-                    'Do you want to update existing Composer packages first?' => 'no',
-                    'Add custom/package configuration to composer.json (config)?' => 'yes',
+
                 ])
                     ->expectsOutputToContain('Updated config section in composer.json')
                     ->assertSuccessful();
@@ -823,8 +877,7 @@ describe('OmakaseCommand', function (): void {
                 mockComposerJsonWrite();
 
                 runOmakaseWithOptions(['--composer' => true], [
-                    'Do you want to update existing Composer packages first?' => 'no',
-                    'Add custom/package configuration to composer.json (extra)?' => 'yes',
+
                 ])
                     ->expectsOutputToContain('Updated extra section in composer.json')
                     ->assertSuccessful();
@@ -851,8 +904,7 @@ describe('OmakaseCommand', function (): void {
                 ]);
 
                 runOmakaseWithOptions(['--composer' => true], [
-                    'Do you want to update existing Composer packages first?' => 'no',
-                    'Add custom/package configuration to composer.json (config)?' => 'yes',
+
                 ])
                     ->expectsOutputToContain('No changes needed for config section')
                     ->assertSuccessful();
@@ -876,8 +928,7 @@ describe('OmakaseCommand', function (): void {
                 mockComposerJson(['name' => 'test/project']);
 
                 runOmakaseWithOptions(['--composer' => true], [
-                    'Do you want to update existing Composer packages first?' => 'no',
-                    'Add custom/package configuration to composer.json (unknown-section)?' => 'yes',
+
                 ])
                     ->expectsOutputToContain('Unknown composer.json section: unknown-section')
                     ->assertSuccessful();
@@ -902,8 +953,7 @@ describe('OmakaseCommand', function (): void {
                 ]);
 
                 runOmakaseWithOptions(['--composer' => true], [
-                    'Do you want to update existing Composer packages first?' => 'no',
-                    'Add custom/package configuration to composer.json (scripts)?' => 'yes',
+
                 ])
                     ->expectsOutputToContain('Invalid composer.json structure')
                     ->assertSuccessful();
@@ -938,8 +988,7 @@ describe('OmakaseCommand', function (): void {
                 ]);
 
                 runOmakaseWithOptions(['--composer' => true], [
-                    'Do you want to update existing Composer packages first?' => 'no',
-                    'Add custom/package configuration to composer.json (scripts)?' => 'yes',
+
                 ])
                     ->expectsOutputToContain('Failed to update composer.json for custom/package, continuing...')
                     ->assertSuccessful();
@@ -968,8 +1017,7 @@ describe('OmakaseCommand', function (): void {
                 ]);
 
                 runOmakaseWithOptions(['--composer' => true], [
-                    'Do you want to update existing Composer packages first?' => 'no',
-                    'Add custom/package configuration to composer.json (scripts)?' => 'yes',
+
                 ])
                     ->assertSuccessful();
             });
@@ -998,8 +1046,7 @@ describe('OmakaseCommand', function (): void {
                 ]);
 
                 runOmakaseWithOptions(['--composer' => true], [
-                    'Do you want to update existing Composer packages first?' => 'no',
-                    'Add custom/package configuration to composer.json (scripts)?' => 'yes',
+
                 ])
                     ->expectsOutputToContain('All required scripts already exist in post-update-cmd')
                     ->assertSuccessful();
@@ -1026,8 +1073,7 @@ describe('OmakaseCommand', function (): void {
                 ]);
 
                 runOmakaseWithOptions(['--composer' => true], [
-                    'Do you want to update existing Composer packages first?' => 'no',
-                    'Add custom/package configuration to composer.json (scripts)?' => 'yes',
+
                 ])
                     ->expectsOutputToContain('Invalid post-update-cmd structure in composer.json')
                     ->assertSuccessful();
@@ -1063,8 +1109,7 @@ describe('OmakaseCommand', function (): void {
 
         it('processes both package types in full installation', function (): void {
             runOmakaseWithOptions(['--skip-composer-json' => true], [
-                'Do you want to update existing Composer packages first?' => 'no',
-                'Do you want to update existing NPM packages first?' => 'no',
+
             ])->assertSuccessful();
 
             assertCommandsRan(['composer require', 'npm install']);
