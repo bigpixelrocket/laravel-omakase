@@ -16,7 +16,7 @@
   ],
   "require": {
     "php": "^8.4",
-    "laravel/framework": "^12.28"
+    "laravel/framework": "^12.29"
   },
   "extra": {
     "laravel": {
